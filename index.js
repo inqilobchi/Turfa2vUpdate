@@ -523,9 +523,9 @@ function mainMenu() {
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📱 Raqam olish 🛎', callback_data: 'get_number' }],
-        [{text: `🌹 Sovg'a olish 🧸`, callback_data : 'get_gift'}],
-        [{ text: '👥 Referal tizimi 🔖', callback_data: 'ref_system' }],
+        [{ text: '📱 Raqam olish', callback_data: 'get_number' }],
+        [{text: `🌹 Sovg'a olish`, callback_data : 'get_gift'}],
+        [{ text: '👥 Referal tizimi', callback_data: 'ref_system' }],
       ]
     }
   };
@@ -568,7 +568,7 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
   }
   
   await addUser(userId, referrerId);
-  await bot.sendMessage(chatId, `🐳`, mainMenu());
+  await bot.sendMessage(chatId, `🚀`, mainMenu());
 });
 
 bot.on('callback_query', async (callbackQuery) => {
@@ -593,7 +593,7 @@ if (data === 'check_subscription') {
 
   if (data === 'back_to_main') {
     await bot.answerCallbackQuery(callbackQuery.id);
-    return bot.editMessageText('Asosiy menyu', {
+    return bot.editMessageText('🚀', {
       chat_id: chatId,
       message_id: msg.message_id,
       ...mainMenu()
