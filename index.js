@@ -523,9 +523,9 @@ function mainMenu() {
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📱 Raqam olish', callback_data: 'get_number' }],
-        [{text: `🌹 Sovg'a olish`, callback_data : 'get_gift'}],
-        [{ text: '👥 Referal tizimi', callback_data: 'ref_system' }],
+        [{ text: '📞Raqam olish🌐', callback_data: 'get_number' }],
+        [{text: `🎁Sovg'a olish🌹`, callback_data : 'get_gift'}],
+        [{ text: '👥Referal tizimi🔗', callback_data: 'ref_system' }],
       ]
     }
   };
