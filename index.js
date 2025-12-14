@@ -223,27 +223,26 @@ const sevenSimSite = 'https://temp-sms.org';
 const countries = {
   'de': { name: '🇩🇪 Germaniya', price: 8, sites: ['https://sms24.me/en/countries/de'] },
   'kr': { name: '🇰🇷 Koreya', price: 10, sites: ['https://sms24.me/en/countries/kr', 'https://sms24.me/en/countries/kr/2', 'https://sms24.me/en/countries/kr/3', 'https://sms24.me/en/countries/kr/4'] },
-  'uz': { name: '🇺🇿 O\'zbekiston', price: 5, sites: ['https://sms24.me/en/countries/uz'] },
+  'uz': { name: '🇺🇿 O\'zbekiston', price: 12, sites: ['https://sms24.me/en/countries/uz'] },
   'usa': { name: '🇺🇸 AQSH', price: 12, sites: ['https://sms24.me/en/countries/usa', 'https://sms24.me/en/countries/us/2', 'https://sms24.me/en/countries/us/3'] },
   'jp': { name: '🇯🇵 Yaponiya', price: 15, sites: ['https://sms24.me/en/countries/jp'] },
   'pt': { name: '🇵🇹 Portugaliya', price: 7, sites: ['https://sms24.me/en/countries/pt'] },
-  'ar': { name: '🇦🇷 Argentina', price: 9, sites: ['https://sms24.me/en/countries/ar'] },
+  'ar': { name: '🇦🇷 Argentina', price: 10, sites: ['https://sms24.me/en/countries/ar'] },
   'cn': { name: '🇨🇳 Xitoy', price: 11, sites: ['https://sms24.me/en/countries/cn'] },
-  'at': { name: '🇦🇹 Avstriya', price: 6, sites: ['https://sms24.me/en/countries/at'] },
-  'bg': { name: '🇧🇬 Bolgariya', price: 4, sites: ['https://sms24.me/en/countries/bg'] },
+  'at': { name: '🇦🇹 Avstriya', price: 9, sites: ['https://sms24.me/en/countries/at'] },
+  'bg': { name: '🇧🇬 Bolgariya', price: 8, sites: ['https://sms24.me/en/countries/bg'] },
   'hk': { name: '🇭🇰 Gonkong', price: 13, sites: ['https://sms24.me/en/countries/hk'] },
-  'in': { name: '🇮🇳 Hindiston', price: 3, sites: ['https://sms24.me/en/countries/in'] },
-  'id': { name: '🇮🇩 Indoneziya', price: 5, sites: ['https://sms24.me/en/countries/id'] },
+  'in': { name: '🇮🇳 Hindiston', price: 9, sites: ['https://sms24.me/en/countries/in'] },
+  'id': { name: '🇮🇩 Indoneziya', price: 7, sites: ['https://sms24.me/en/countries/id'] },
   'my': { name: '🇲🇾 Malayziya', price: 8, sites: ['https://sms24.me/en/countries/my'] },
   'mx': { name: '🇲🇽 Meksika', price: 7, sites: ['https://sms24.me/en/countries/mx'] },
   'nl': { name: '🇳🇱 Niderlandiya', price: 9, sites: ['https://sms24.me/en/countries/nl'] },
-  'ng': { name: '🇳🇬 Nigeriya', price: 4, sites: ['https://sms24.me/en/countries/ng'] },
-  'vn': { name: '🇻🇳 Vetnam', price: 6, sites: ['https://sms24.me/en/countries/vn'] },
+  'ng': { name: '🇳🇬 Nigeriya', price: 8, sites: ['https://sms24.me/en/countries/ng'] },
+  'vn': { name: '🇻🇳 Vetnam', price: 7, sites: ['https://sms24.me/en/countries/vn'] },
   'br': { name: '🇧🇷 Braziliya', price: 10, sites: ['https://sms24.me/en/countries/br'] },
-  'hr': { name: '🇭🇷 Xorvatiya', price: 5, sites: ['https://sms24.me/en/countries/hr'] },
-  'ph': { name: '🇵🇭 Filippin', price: 6, sites: ['https://sms24.me/en/countries/ph'] },
-  'receive': { name: '🌐 Umumiy (Receive)', price: 7, sites: [receiveSite] },
-  '7sim': { name: '✨ 7Sim', price: 9, sites: [sevenSimSite] }
+  'hr': { name: '🇭🇷 Xorvatiya', price: 11, sites: ['https://sms24.me/en/countries/hr'] },
+  'ph': { name: '🇵🇭 Filippin', price: 8, sites: ['https://sms24.me/en/countries/ph'] },
+  '7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
 const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
 const timeoutOptions = { timeout: 15000 };
