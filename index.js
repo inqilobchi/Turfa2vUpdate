@@ -1090,21 +1090,15 @@ if (data === 'get_sms_now') {
 }
 
 if (data === 'cancel_sms') {
+  // 🔥 DARHOL JAVOB
+  await bot.answerCallbackQuery(callbackQuery.id).catch(() => {});
+
   const selected = userSelections.get(`${userId}_selected_number`);
-  if (!selected) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '❌ Bekor qilish uchun raqam yo‘q.'
-    });
-  }
+  if (!selected) return;
 
   const country = countries[selected.countryKey];
-  if (!country) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '❌ Davlat topilmadi.'
-    });
-  }
+  if (!country) return;
 
-  // Referal qaytarish
   await User.updateOne(
     { userId },
     { $inc: { referalCount: country.price } }
@@ -1112,7 +1106,7 @@ if (data === 'cancel_sms') {
 
   userSelections.delete(`${userId}_selected_number`);
 
-  await bot.editMessageText(
+  return bot.editMessageText(
     `<b>❌ SMS kutish bekor qilindi.</b>\n${country.price} referal qaytarildi.`,
     {
       chat_id: chatId,
@@ -1128,7 +1122,8 @@ if (data === 'cancel_sms') {
 }
 
 
-  return bot.answerCallbackQuery(callbackQuery.id, {
+
+  bot.answerCallbackQuery(callbackQuery.id, {
     text: '⚠️ Nomaʼlum buyruq.'
   });
 });
