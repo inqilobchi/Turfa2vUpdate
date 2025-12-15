@@ -12,7 +12,8 @@ const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
 const tempReferrers = new Map(); 
 const userSelections = new Map();
-
+const MAX_ATTEMPTS = 40;  // 40 * 15 soniya = 10 daqiqa
+const checkInterval = 15000;  // 15 soniya
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { webHook: true });
 
