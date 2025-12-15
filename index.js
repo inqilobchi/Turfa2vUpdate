@@ -916,6 +916,7 @@ if (data.startsWith('confirm_gift_')) {
   }
 }
 
+
 if (data.startsWith('select_number_')) {
   let idx, siteType;
   if (data.startsWith('select_number_receive_')) {
@@ -930,52 +931,41 @@ if (data.startsWith('select_number_')) {
   } else {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Noto\'g\'ri tanlov.' });
   }
-
   const selections = userSelections.get(userId);
   if (!selections) {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Raqamlar topilmadi.' });
   }
-
   const selected = selections.allNumbers[idx];  
   if (!selected) {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Tanlangan raqam topilmadi (indeks: ' + idx + ').' });  
   }
-
   const countryKey = userSelections.get(`${userId}_selected_country`);
-
-  userSelections.set(`${userId}_selected`, {
+  const country = countries[countryKey];
+  if (!country) {
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Davlat topilmadi.' });
+  }
+    const ok = await decrementReferals(userId, country.price);
+  if (!ok) {
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '🚫 Yetarli referal yo‘q.' });
+  }
+  userSelections.set(`${userId}_selected_number`, {
     ...selected,
     site: selected.site,
-    countryKey
+    countryKey,
+    cost: country.price,
+    paid: true
   });
-
   const siteName = selected.site === receiveSite ? '' : '';
   await bot.answerCallbackQuery(callbackQuery.id);
   return bot.editMessageText(
-    `<b>📞 Siz <code>${selected.phone}</code> raqamini tanladingiz.</b>
-<blockquote>
-<b><i>
-❗️ Ushbu raqamni ishlatish uchun 6 ta referalingiz kamaytiriladi.
-
-⚠️ Diqqat! Bu raqam ommaviy tarzda foydalaniladi. Quyidagi holatlar bo‘lishi mumkin:
-
-- 🕐 Raqam ilgari boshqa foydalanuvchilar tomonidan ishlatilgan bo‘lishi mumkin.  
-- 🔐 Ba’zi servislar ikki bosqichli himoya (2FA) yoki parol bilan himoyalangan bo‘lishi mumkin.  
-- 📩 Kod yuborilishi kafolatlanmaydi — bu servisga, raqamga va vaqtga bog‘liq.  
-- ⌛ Kod kechikishi yoki umuman kelmasligi ehtimoli bor.  
-- ❌ Barcha xizmatlar bu raqamlarni qabul qilavermasligi mumkin.
-
-📌 Ushbu raqamni tanlab, siz yuqoridagi holatlarni tushunganingizni va roziligingizni bildirgan bo‘lasiz.
-</i></b>
-</blockquote>
-<b>Davom etishni xohlaysizmi?</b>`,
+    `<b>📞 Siz <code>${selected.phone}</code> raqamini tanladingiz.</b>\n<i>👉 Endi “SMS olish” tugmasini bosing.</i>`,
     {
       chat_id: chatId,
       message_id: msg.message_id,
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ Roziman', callback_data: 'confirm_number' }],
+          [{ text: '📩 SMS olish', callback_data: 'get_sms_now' }],
           [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
         ]
       }
@@ -1024,77 +1014,69 @@ if (data.startsWith('select_number_')) {
     );
   }
 
-  if (data === 'get_sms_now') {
-    const selected = userSelections.get(`${userId}_selected_number`);
-    if (!selected) {
-      return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Raqam tanlanmagan.' });
-    }
-
-    let attempts = 0;
-    const MAX_ATTEMPTS = 5;
-    const checkInterval = 15000;
-
-    const cancelTimer = setTimeout(async () => {
-      try {
-        await bot.editMessageReplyMarkup({
-          inline_keyboard: [
-            [{ text: '❌ Bekor qilish (Referal qaytariladi)', callback_data: 'cancel_sms' }]
-          ]
-        }, { chat_id: chatId, message_id: msg.message_id });
-      } catch {}
-    }, 180000);
-
-    async function poll() {
-      if (attempts++ >= MAX_ATTEMPTS) {
-        clearTimeout(cancelTimer);
-        clearUser(userId);
-        return bot.editMessageText('❌ SMS kelmadi.', {
-          chat_id: chatId,
-          message_id: msg.message_id
-        });
-      }
-
-      const res = await fetchMessagesForItem(selected);
-      if (res.ok) {
-        clearTimeout(cancelTimer);
-        clearUser(userId);
-        return bot.editMessageText(
-          res.messages.map(m => m.text).join('\n\n'),
-          { chat_id: chatId, message_id: msg.message_id }
-        );
-      }
-
-      setTimeout(poll, checkInterval);
-    }
-
-    poll();
+if (data === 'get_sms_now') {
+  const selected = userSelections.get(`${userId}_selected_number`);
+  if (!selected) {
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Raqam tanlanmagan.' });
   }
-
- if (data === 'cancel_sms') {
-    const selected = userSelections.get(`${userId}_selected_number`);
-    if (!selected) return;
-
-    await User.updateOne(
-      { userId },
-      { $inc: { referalCount: selected.cost || 0 } }
-    );
-
-    clearUser(userId);
-
-    return bot.editMessageText(
-      `<b>❌ SMS kutish bekor qilindi.</b>`,
-      {
+  // Alert qo'shish
+  await bot.answerCallbackQuery(callbackQuery.id, { text: 'SMS kutilmoqda...' });
+  let attempts = 0;
+  const cancelTimer = setTimeout(async () => {
+    try {
+      await bot.editMessageReplyMarkup({
+        inline_keyboard: [
+          [{ text: '❌ Bekor qilish (Referal qaytariladi)', callback_data: 'cancel_sms' }],
+          [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
+        ]
+      }, { chat_id: chatId, message_id: msg.message_id });
+    } catch {}
+  }, 180000);  // 3 daqiqa
+  async function poll() {
+    if (attempts++ >= MAX_ATTEMPTS) {
+      clearTimeout(cancelTimer);
+      clearUser(userId);
+      return bot.editMessageText('❌ SMS kod kelmadi.', {
         chat_id: chatId,
-        message_id: msg.message_id,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main' }]
-          ]
-        }
-      }
-    );
+        message_id: msg.message_id
+      });
+    }
+   const res = await fetchMessagesForItem(selected);
+    if (res.ok) {
+      clearTimeout(cancelTimer);
+      clearUser(userId);
+      return bot.editMessageText(
+        res.messages.map(m => m.text).join('\n\n'),
+        { chat_id: chatId, message_id: msg.message_id }
+      );
+    }
+    setTimeout(poll, checkInterval);
   }
+  poll();
+}
+if (data === 'cancel_sms') {
+  const selected = userSelections.get(`${userId}_selected_number`);
+  if (!selected) return;
+  // Referal qaytarish
+  await User.updateOne(
+    { userId },
+    { $inc: { referalCount: selected.cost || 0 } }
+  );
+  clearUser(userId);
+  return bot.editMessageText(
+    `<b>❌ SMS kutish bekor qilindi. Referal qaytarildi.</b>`,
+    {
+      chat_id: chatId,
+      message_id: msg.message_id,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main' }]
+        ]
+      }
+    }
+  );
+}
 
   bot.answerCallbackQuery(callbackQuery.id).catch(() => {});
 });
