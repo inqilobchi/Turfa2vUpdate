@@ -1,9 +1,8 @@
 require('dotenv').config();
-const axios = require('axios');
 const Fastify = require('fastify');
 const fastify = Fastify({ logger: true });
 const TelegramBot = require('node-telegram-bot-api');
-const fetch = require('node-fetch');
+const { fetch } = require('undici');
 const cheerio = require('cheerio');
 const mongoose = require('mongoose');
 const User = require('./models/User');
@@ -12,51 +11,38 @@ const REQUIRED_CHANNELS = (process.env.REQUIRED_CHANNELS || '').split(',').map(c
 const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
 const tempReferrers = new Map(); 
+const userSelections = new Map();
 
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { webHook: true });
 
 const WEBHOOK_PATH = `/webhook/${token}`;
 const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
-
-// Webhook endpoint
-fastify.post(WEBHOOK_PATH, (req, reply) => {
-  try {
-    bot.processUpdate(req.body);  // Telegram update-larni botga uzatish juda muhim
-    console.log('Update processed:', req.body);
-    reply.code(200).send();       // Telegram API uchun 200 OK javob qaytarish kerak
-  } catch (error) {
-    console.error('Error processing update:', error);
-    reply.sendStatus(500);
-  }
+fastify.post(WEBHOOK_PATH, async (req, reply) => {
+  reply.code(200).send();
+  setImmediate(() => {
+    try {
+      bot.processUpdate(req.body);
+    } catch (e) {
+      console.error('processUpdate error:', e.message);
+    }
+  });
 });
 
-// Health check endpoint
-fastify.get('/healthz', (req, reply) => {
-  reply.send({ status: 'ok' });
-});
+fastify.get('/healthz', (_, reply) => reply.send({ status: 'ok' }));
 
-// Serverni ishga tushirish va webhook o‘rnatish
 fastify.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, async (err, address) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
   }
-
   fastify.log.info(`Server listening at ${address}`);
 
   try {
-const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, null, {
-  params: { url: FULL_WEBHOOK_URL }
-});
-
-    if (response.data.ok) {
-      fastify.log.info('Webhook successfully set:', response.data);
-    } else {
-      fastify.log.error('Failed to set webhook:', response.data);
-    }
-  } catch (error) {
-    fastify.log.error('Error setting webhook:', error.message);
+    await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${FULL_WEBHOOK_URL}`);
+    fastify.log.info('Webhook successfully set');
+  } catch (e) {
+    fastify.log.error('Webhook error:', e.message);
   }
 });
 bot.getMe().then((botInfo) => {
@@ -124,6 +110,11 @@ async function getSubscriptionMessage() {
   };
 }
 
+function clearUser(userId) {
+  userSelections.delete(userId);
+  userSelections.delete(`${userId}_selected`);
+  userSelections.delete(`${userId}_selected_number`);
+}
 
 async function showNumberPage(chatId, messageId, userId, userSelections) {
   const selections = userSelections.get(userId);
@@ -512,7 +503,11 @@ async function decrementReferals(userId, count = 5) {
   const user = await getUser(userId);
   if (!user || user.referalCount < count) return false;
 
-  const newReferals = user.referals.slice(count);
+  await User.updateOne(
+    { userId },
+    { $inc: { referalCount: -count } }
+  );
+
   await User.updateOne(
     { userId },
     { $set: { referals: newReferals }, $inc: { referalCount: -count } }
@@ -547,7 +542,7 @@ async function referalMenu(userId) {
     text: `👥 Sizning referallar soningiz: ${referalCount}\n🔗 Havolangiz:\n<code>${refLink}</code>\nUstiga bosilsa nusxa olinadi👆🏻`
   };
 }
-const userSelections = new Map();
+
 const gifts = {
   '15stars_heart' : {title : '💝', price : 25},
   '15stars_bear': {title : '🧸', price : 25},
@@ -805,25 +800,27 @@ if (data.startsWith('confirm_buy_country_')) {
   }
 
   // Referal kamaytirish
-  const success = await decrementReferals(userId, country.price);
-  if (!success) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '❌ Referal kamaytirishda xatolik.',
-      show_alert: true
-    });
-  }
+userSelections.set(`${userId}_selected_number`, {
+  ...selectedNumber,
+  countryKey,
+  cost: country.price,
+  paid: false   // ❗ hali to‘lanmagan
+});
+
 
   // Davlat uchun raqamlarni yuklash
-  let allNumbers = [];
-  for (const site of country.sites) {
-    if (site === receiveSite) {
-      allNumbers.push(...await scrapeSite(site));
-    } else if (site === sevenSimSite) {
-      allNumbers.push(...await scrapeSevenSim(site));
-    } else {
-      allNumbers.push(...await scrapeOnlineSim(site));
-    }
-  }
+const results = await Promise.allSettled(
+  country.sites.map(site => {
+    if (site === receiveSite) return scrapeSite(site);
+    if (site === sevenSimSite) return scrapeSevenSim(site);
+    return scrapeOnlineSim(site);
+  })
+);
+
+const allNumbers = results
+  .filter(r => r.status === 'fulfilled')
+  .flatMap(r => r.value);
+
 
   // Unique qilish
   const seen = new Map();
@@ -952,7 +949,14 @@ if (data.startsWith('select_number_')) {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Tanlangan raqam topilmadi (indeks: ' + idx + ').' });  
   }
 
-  userSelections.set(`${userId}_selected`, { ...selected, site: selected.site });
+  const countryKey = userSelections.get(`${userId}_selected_country`);
+
+  userSelections.set(`${userId}_selected`, {
+    ...selected,
+    site: selected.site,
+    countryKey
+  });
+
   const siteName = selected.site === receiveSite ? '' : '';
   await bot.answerCallbackQuery(callbackQuery.id);
   return bot.editMessageText(
@@ -987,143 +991,118 @@ if (data.startsWith('select_number_')) {
   );
 }
 
- if (data === 'confirm_number') {
+  if (data === 'confirm_number') {
   const selected = userSelections.get(`${userId}_selected`);
   if (!selected) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '❌ Raqam topilmadi.'
-    });
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Raqam topilmadi.' });
   }
-  const decremented = await decrementReferals(userId, 6);  // <-- 5 dan 10 ga o'zgartirdim
-  if (!decremented) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '🚫 Yetarli referal yo‘q.'  // <-- Bu yerda ham 10 ta tekshiruvi bor (decrementReferals ichida)
-    });
+  
+  const country = countries[selected.countryKey];
+  if (!country) {
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Davlat topilmadi.' });
   }
-  await bot.answerCallbackQuery(callbackQuery.id);
-  return bot.editMessageText(
-    `<b>📞 Siz tanlagan raqam: <code>${selected.phone}</code></b>\n<i>👉 Endi “SMS olish” tugmasini bosing.</i>\n\n<u>10 daqiqa ichida xabar kelmasa sizga xabar beramiz..</u>`,
-    {
-      chat_id: chatId,
-      message_id: msg.message_id,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '📩 SMS olish', callback_data: 'get_sms_now' }],
-          [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
-        ]
-      }
-    }
-  );
-}
-
-if (data === 'get_sms_now') {
-  const selected = userSelections.get(`${userId}_selected_number`);
-  if (!selected) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '❌ Raqam tanlanmagan.'
-    });
+  
+  // ❗ faqat bu yerda yechiladi
+  const ok = await decrementReferals(userId, country.price);
+  if (!ok) {
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '🚫 Yetarli referal yo‘q.' });
   }
-
-  await bot.answerCallbackQuery(callbackQuery.id, {
-    text: '📩 SMS kelishini kuting..'
+  
+  userSelections.set(`${userId}_selected_number`, {
+    ...selected,
+    cost: country.price,
+    paid: true
   });
 
-  const startTime = Date.now();
-  const waitTime = 10 * 60 * 1000; // 10 daqiqa
-  const checkInterval = 15 * 1000; // 15 sekund
-  const cancelTime = 3 * 60 * 1000; // 3 daqiqa
 
-  // Bekor qilish uchun timer
-  const cancelTimer = setTimeout(async () => {
-    // 3 daqiqadan keyin bekor qilish tugmasini ishga tushirish
-    try {
-      await bot.editMessageReplyMarkup({
-        inline_keyboard: [
-          [{ text: '❌ Bekor qilish (Referal qaytariladi)', callback_data: 'cancel_sms' }],
-          [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
-        ]
-      }, {
+
+    return bot.editMessageText(
+      `<b>📞 Siz tanlagan raqam: <code>${selected.phone}</code></b>\n<i>👉 Endi “SMS olish” tugmasini bosing.</i>`,
+      {
         chat_id: chatId,
-        message_id: msg.message_id
-      });
-    } catch (e) {
-      console.error('Bekor qilish tugmasini yangilashda xatolik:', e.message);
-    }
-  }, cancelTime);
-
-  async function pollMessages() {
-    const result = await fetchMessagesForItem(selected);
-    if (result.ok && result.messages.length > 0) {
-      clearTimeout(cancelTimer);
-      let messageText = `📨 Oxirgi ${result.messages.length} ta SMS:\n\n`;
-      for (const m of result.messages) {
-        messageText += `- ${m.text}\n\n`;
+        message_id: msg.message_id,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📩 SMS olish', callback_data: 'get_sms_now' }],
+            [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
+          ]
+        }
       }
+    );
+  }
+
+  if (data === 'get_sms_now') {
+    const selected = userSelections.get(`${userId}_selected_number`);
+    if (!selected) {
+      return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Raqam tanlanmagan.' });
+    }
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+    const checkInterval = 15000;
+
+    const cancelTimer = setTimeout(async () => {
       try {
-        await bot.editMessageText(messageText, {
+        await bot.editMessageReplyMarkup({
+          inline_keyboard: [
+            [{ text: '❌ Bekor qilish (Referal qaytariladi)', callback_data: 'cancel_sms' }]
+          ]
+        }, { chat_id: chatId, message_id: msg.message_id });
+      } catch {}
+    }, 180000);
+
+    async function poll() {
+      if (attempts++ >= MAX_ATTEMPTS) {
+        clearTimeout(cancelTimer);
+        clearUser(userId);
+        return bot.editMessageText('❌ SMS kelmadi.', {
           chat_id: chatId,
           message_id: msg.message_id
         });
-      } catch (e) {
-        console.error('Xabarni yangilashda xatolik:', e.message);
       }
-      return;
-    } else {
-      if (Date.now() - startTime > waitTime) {
+
+      const res = await fetchMessagesForItem(selected);
+      if (res.ok) {
         clearTimeout(cancelTimer);
-        try {
-          await bot.editMessageText('❌ Hech qanday xabar kelmadi.', {
-            chat_id: chatId,
-            message_id: msg.message_id
-          });
-        } catch (e) {
-          console.error('Xabarni yangilashda xatolik:', e.message);
-        }
-        return;
+        clearUser(userId);
+        return bot.editMessageText(
+          res.messages.map(m => m.text).join('\n\n'),
+          { chat_id: chatId, message_id: msg.message_id }
+        );
       }
-      setTimeout(pollMessages, checkInterval);
+
+      setTimeout(poll, checkInterval);
     }
+
+    poll();
   }
 
-  pollMessages();
-}
+ if (data === 'cancel_sms') {
+    const selected = userSelections.get(`${userId}_selected_number`);
+    if (!selected) return;
 
-if (data === 'cancel_sms') {
-  // 🔥 DARHOL JAVOB
-  await bot.answerCallbackQuery(callbackQuery.id).catch(() => {});
+    await User.updateOne(
+      { userId },
+      { $inc: { referalCount: selected.cost || 0 } }
+    );
 
-  const selected = userSelections.get(`${userId}_selected_number`);
-  if (!selected) return;
+    clearUser(userId);
 
-  const country = countries[selected.countryKey];
-  if (!country) return;
-
-  await User.updateOne(
-    { userId },
-    { $inc: { referalCount: country.price } }
-  );
-
-  userSelections.delete(`${userId}_selected_number`);
-
-  return bot.editMessageText(
-    `<b>❌ SMS kutish bekor qilindi.</b>\n${country.price} referal qaytarildi.`,
-    {
-      chat_id: chatId,
-      message_id: msg.message_id,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main' }]
-        ]
+    return bot.editMessageText(
+      `<b>❌ SMS kutish bekor qilindi.</b>`,
+      {
+        chat_id: chatId,
+        message_id: msg.message_id,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main' }]
+          ]
+        }
       }
-    }
-  );
-}
+    );
+  }
 
-
-
-  bot.answerCallbackQuery(callbackQuery.id, {
-    text: '⚠️ Nomaʼlum buyruq.'
-  });
+  bot.answerCallbackQuery(callbackQuery.id).catch(() => {});
 });
