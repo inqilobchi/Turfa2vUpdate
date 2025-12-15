@@ -799,14 +799,6 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-  // Referal kamaytirish
-userSelections.set(`${userId}_selected_number`, {
-  ...selectedNumber,
-  countryKey,
-  cost: country.price,
-  paid: false   // ❗ hali to‘lanmagan
-});
-
 
   // Davlat uchun raqamlarni yuklash
 const results = await Promise.allSettled(
