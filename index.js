@@ -499,15 +499,12 @@ if (referrerId && referrerId !== userId) {
   await userDoc.save();
   return userDoc;
 }
-
 async function decrementReferals(userId, count = 5) {
   const user = await getUser(userId);
   if (!user || user.referalCount < count) return false;
 
-  await User.updateOne(
-    { userId },
-    { $inc: { referalCount: -count } }
-  );
+  // Oxirgi 'count' ta referalni olib tashlash
+  const newReferals = user.referals.slice(0, user.referals.length - count);
 
   await User.updateOne(
     { userId },
@@ -515,6 +512,7 @@ async function decrementReferals(userId, count = 5) {
   );
   return true;
 }
+
 function mainMenu() {
   return {
     reply_markup: {
