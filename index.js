@@ -235,7 +235,7 @@ const countries = {
   'hr': { name: '🇭🇷 Xorvatiya', price: 11, sites: ['https://sms24.me/en/countries/hr'] },
   'ph': { name: '🇵🇭 Filippin', price: 8, sites: ['https://sms24.me/en/countries/ph'] },
   'es' : { name: '🇪🇸 Ispaniya', price: 13, sites: ['https://sms24.me/en/countries/es', 'https://sms24.me/en/countries/es/2', 'https://sms24.me/en/countries/es/3', 'https://sms24.me/en/countries/es/4', 'https://sms24.me/en/countries/es/5']},
-  'it' : { name: '🇮🇹 Italiya', price: 10, sites: ['https://sms24.me/en/countries/it']} 
+  'it' : { name: '🇮🇹 Italiya', price: 10, sites: ['https://sms24.me/en/countries/it']},
   '7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
 const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
