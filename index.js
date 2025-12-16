@@ -216,7 +216,7 @@ const countries = {
   'de': { name: '🇩🇪 Germaniya', price: 8, sites: ['https://sms24.me/en/countries/de'] },
   'kr': { name: '🇰🇷 Koreya', price: 10, sites: ['https://sms24.me/en/countries/kr', 'https://sms24.me/en/countries/kr/2', 'https://sms24.me/en/countries/kr/3', 'https://sms24.me/en/countries/kr/4'] },
   'uz': { name: '🇺🇿 O\'zbekiston', price: 12, sites: ['https://sms24.me/en/countries/uz'] },
-  'usa': { name: '🇺🇸 AQSH', price: 12, sites: ['https://sms24.me/en/countries/usa', 'https://sms24.me/en/countries/us/2', 'https://sms24.me/en/countries/us/3'] },
+  'usa': { name: '🇺🇸 AQSH', price: 14, sites: ['https://sms24.me/en/countries/usa', 'https://sms24.me/en/countries/us/2', 'https://sms24.me/en/countries/us/3'] },
   'jp': { name: '🇯🇵 Yaponiya', price: 15, sites: ['https://sms24.me/en/countries/jp'] },
   'pt': { name: '🇵🇹 Portugaliya', price: 7, sites: ['https://sms24.me/en/countries/pt'] },
   'ar': { name: '🇦🇷 Argentina', price: 10, sites: ['https://sms24.me/en/countries/ar'] },
@@ -234,6 +234,8 @@ const countries = {
   'br': { name: '🇧🇷 Braziliya', price: 10, sites: ['https://sms24.me/en/countries/br'] },
   'hr': { name: '🇭🇷 Xorvatiya', price: 11, sites: ['https://sms24.me/en/countries/hr'] },
   'ph': { name: '🇵🇭 Filippin', price: 8, sites: ['https://sms24.me/en/countries/ph'] },
+  'es' : { name: '🇪🇸 Ispaniya', price: 13, sites: ['https://sms24.me/en/countries/es', 'https://sms24.me/en/countries/es/2', 'https://sms24.me/en/countries/es/3', 'https://sms24.me/en/countries/es/4', 'https://sms24.me/en/countries/es/5']},
+  'it' : { name: '🇮🇹 Italiya', price: 10, sites: ['https://sms24.me/en/countries/it']} 
   '7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
 const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
