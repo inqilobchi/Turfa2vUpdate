@@ -239,13 +239,24 @@ const countries = {
 const PHONE_RE = /(\+?\d[\d\s\-\(\)]{6,}\d)/g;
 async function fetchHtml(url) {
   const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    headless: "new",
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage'
+    ]
   });
 
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0');
 
-  await page.goto(url, { waitUntil: 'networkidle2' });
+  await page.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36'
+  );
+
+  await page.goto(url, {
+    waitUntil: 'networkidle2',
+    timeout: 60000
+  });
 
   const html = await page.content();
   await browser.close();
