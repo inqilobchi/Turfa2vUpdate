@@ -669,19 +669,41 @@ if (data === 'get_number') {
     });
   }
 
-  // Davlatlar menyusini yaratish
-  const countryButtons = Object.entries(countries).map(([key, country]) => {
-    return [{ text: `${country.name} - ${country.price} referal`, callback_data: `select_country_${key}` }];
-  });
-  countryButtons.push([{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]);
+const countryEntries = Object.entries(countries);
 
-  await bot.answerCallbackQuery(callbackQuery.id);
-  return bot.editMessageText("🌍 Qaysi davlatdan raqam xohlaysiz?", {
-    chat_id: chatId,
-    message_id: msg.message_id,
-    reply_markup: { inline_keyboard: countryButtons }
+const countryButtons = [];
+
+for (let i = 0; i < countryEntries.length; i += 2) {
+  const row = [];
+
+  const [key1, country1] = countryEntries[i];
+  row.push({
+    text: `${country1.name} - ${country1.price}💎`,
+    callback_data: `select_country_${key1}`
   });
+
+  if (i + 1 < countryEntries.length) {
+    const [key2, country2] = countryEntries[i + 1];
+    row.push({
+      text: `${country2.name} - ${country2.price}💎`,
+      callback_data: `select_country_${key2}`
+    });
+  }
+
+  countryButtons.push(row);
 }
+
+countryButtons.push([
+  { text: '⬅️ Orqaga', callback_data: 'back_to_main' }
+]);
+
+await bot.answerCallbackQuery(callbackQuery.id);
+
+return bot.editMessageText("🌍 Qaysi davlatdan raqam xohlaysiz?", {
+  chat_id: chatId,
+  message_id: msg.message_id,
+  reply_markup: { inline_keyboard: countryButtons }
+});
 if (data === 'next_page') {
   const selections = userSelections.get(userId);
   if (!selections || selections.currentPage >= selections.totalPages - 1) {
