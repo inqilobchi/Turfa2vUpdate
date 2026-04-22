@@ -175,7 +175,6 @@ if (i + 1 < pageNumbers.length) {
     buttons.push(row);
   }
 
-  // Pagination tugmalari
   const paginationRow = [];
   if (currentPage > 0) {
     paginationRow.push({ text: '⬅️ Oldingi', callback_data: 'prev_page', style: "success" });
@@ -233,7 +232,7 @@ const countries = {
   'es' : { name: '🇪🇸 Ispaniya', price: 13, sites: ['https://sms24.me/en/countries/es', 'https://sms24.me/en/countries/es/2', 'https://sms24.me/en/countries/es/3', 'https://sms24.me/en/countries/es/4', 'https://sms24.me/en/countries/es/5']},
   'it' : { name: '🇮🇹 Italiya', price: 10, sites: ['https://sms24.me/en/countries/it']},
   'can' : { name: '🇨🇦 Kanada', price: 8, sites: ['https://sms24.me/en/countries/ca', 'https://sms24.me/en/countries/ca/2', 'https://sms24.me/en/countries/ca/3', 'https://sms24.me/en/countries/ca/4', 'https://sms24.me/en/countries/ca/5', 'https://sms24.me/en/countries/ca/6', 'https://sms24.me/en/countries/ca/7', 'https://sms24.me/en/countries/ca/8', 'https://sms24.me/en/countries/ca/9', 'https://sms24.me/en/countries/ca/10', 'https://sms24.me/en/countries/ca/11', 'https://sms24.me/en/countries/ca/12', 'https://sms24.me/en/countries/ca/13', 'https://sms24.me/en/countries/ca/14', 'https://sms24.me/en/countries/ca/15']},
-  '7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
+  //'7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
 const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
 const timeoutOptions = { timeout: 15000 };
@@ -532,9 +531,9 @@ function mainMenu() {
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📞Raqam olish🌐', callback_data: 'get_number', style: "primary" }],
-        [{text: `🎁Sovg'a olish🌹`, callback_data : 'get_gift', style: "success"}],
-        [{ text: '👥Referal tizimi🔗', callback_data: 'ref_system' }],
+        [{ text: '📞 Raqam olish', callback_data: 'get_number', style: "primary" }],
+        [{text: `🧸 Sovg'a olish`, callback_data : 'get_gift', style: "success"}],
+        [{ text: '👥 Referal tizimi', callback_data: 'ref_system' }],
       ]
     }
   };
@@ -549,8 +548,8 @@ async function referalMenu(userId) {
     reply_markup: {
       inline_keyboard: [
         [{ text: `Referallar soni: ${referalCount}`, callback_data: 'ref_count' }],
-        [{ text: '📝 Referal havola', callback_data: 'ref_link' }],
-        [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }],
+        [{ text: '📝 Referal havola', callback_data: 'ref_link', style: "primary" }],
+        [{ text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }],
       ]
     },
     text: `👥 Sizning referallar soningiz: ${referalCount}\n🔗 Havolangiz:\n<code>${refLink}</code>\nUstiga bosilsa nusxa olinadi👆🏻`
@@ -583,7 +582,7 @@ if (!user.agreedToTerms) {
   return bot.sendMessage(chatId, terms.text, terms.options);
 }
 
-await bot.sendMessage(chatId, `🚀`, mainMenu());
+await bot.sendMessage(chatId, `🦔`, mainMenu());
 });
 
 bot.on('callback_query', async (callbackQuery) => {
@@ -602,7 +601,7 @@ bot.on('callback_query', async (callbackQuery) => {
     text: '✅ Rozilik tasdiqlandi'
   });
 
-  return bot.editMessageText('🚀', {
+  return bot.editMessageText('🦔', {
     chat_id: chatId,
     message_id: msg.message_id,
     ...mainMenu()
@@ -629,7 +628,7 @@ return bot.sendMessage(chatId, '✅ Obuna tasdiqlandi!', mainMenu());
 
   if (data === 'back_to_main') {
     await bot.answerCallbackQuery(callbackQuery.id);
-    return bot.editMessageText('🚀', {
+    return bot.editMessageText('🦔', {
       chat_id: chatId,
       message_id: msg.message_id,
       ...mainMenu()
@@ -685,7 +684,7 @@ for (let i = 0; i < countryEntries.length; i += 2) {
   if (i + 1 < countryEntries.length) {
     const [key2, country2] = countryEntries[i + 1];
     row.push({
-      text: `${country2.name} - ${country2.price}💎`,
+      text: `${country2.name} - ${country2.price} 🌿`,
       callback_data: `select_country_${key2}`
     });
   }
@@ -694,7 +693,7 @@ for (let i = 0; i < countryEntries.length; i += 2) {
 }
 
 countryButtons.push([
-  { text: '⬅️ Orqaga', callback_data: 'back_to_main' }
+  { text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }
 ]);
 
 await bot.answerCallbackQuery(callbackQuery.id);
@@ -731,11 +730,10 @@ if (data === 'get_gift') {
     });
   }
 
-  // Sovg'alar menyusini yaratish
   const giftButtons = Object.entries(gifts).map(([key, gift]) => {
     return [{ text: gift.title, callback_data: `gift_${key}` }];
   });
-  giftButtons.push([{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]);
+  giftButtons.push([{ text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }]);
   await bot.answerCallbackQuery(callbackQuery.id);
   return bot.editMessageText("⤵️ Sovg'alardan birini tanlang:", {
     chat_id: chatId,
@@ -803,8 +801,8 @@ if (data.startsWith('select_country_')) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ Sotib olish', callback_data: `buy_country_${countryKey}` }],
-          [{ text: '⬅️ Orqaga', callback_data: 'get_number' }]
+          [{ text: '✅ Sotib olish', callback_data: `buy_country_${countryKey}`, style: "success" }],
+          [{ text: '⬅️ Orqaga', callback_data: 'get_number', style: "danger" }]
         ]
       }
     }
@@ -837,8 +835,8 @@ if (data.startsWith('buy_country_')) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ Tasdiqlayman', callback_data: `confirm_buy_country_${countryKey}` }],
-          [{ text: '⬅️ Orqaga', callback_data: `select_country_${countryKey}` }]
+          [{ text: '✅ Tasdiqlayman', callback_data: `confirm_buy_country_${countryKey}`, style: "success" }],
+          [{ text: '⬅️ Orqaga', callback_data: `select_country_${countryKey}`, style: "danger" }]
         ]
       }
     }
@@ -864,7 +862,6 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-  // Referal yechish
   const ok = await decrementReferals(userId, country.price);
   if (!ok) {
     return bot.answerCallbackQuery(callbackQuery.id, {
@@ -873,7 +870,6 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-  // Davlat uchun raqamlarni yuklash
   const results = await Promise.allSettled(
     country.sites.map(site => {
       if (site === receiveSite) return scrapeSite(site);
@@ -886,7 +882,6 @@ if (data.startsWith('confirm_buy_country_')) {
     .filter(r => r.status === 'fulfilled')
     .flatMap(r => r.value);
 
-  // Unique qilish
   const seen = new Map();
   const uniqueNumbers = allNumbers.filter(item => {
     if (!seen.has(item.phone)) {
@@ -897,7 +892,6 @@ if (data.startsWith('confirm_buy_country_')) {
   });
 
   if (uniqueNumbers.length === 0) {
-    // Referal qaytarish agar raqam topilmasa
     await User.updateOne(
       { userId },
       { $inc: { referalCount: country.price } }
@@ -908,11 +902,9 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-  // Random raqam tanlash
   const randomIndex = Math.floor(Math.random() * uniqueNumbers.length);
   const selectedNumber = uniqueNumbers[randomIndex];
 
-  // Saqlash
   userSelections.set(`${userId}_selected_number`, { ...selectedNumber, countryKey, cost: country.price, paid: true });
 
   await bot.editMessageText(
@@ -923,8 +915,8 @@ if (data.startsWith('confirm_buy_country_')) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '📩 SMS olish', callback_data: 'get_sms_now' }],
-          [{ text: '❌ Bekor qilish', callback_data: 'cancel_sms' }],
+          [{ text: '📩 SMS olish', callback_data: 'get_sms_now', style: "success" }],
+          [{ text: '❌ Bekor qilish', callback_data: 'cancel_sms', style: "danger" }],
           [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
         ]
       }
@@ -960,7 +952,6 @@ if (data.startsWith('confirm_gift_')) {
     });
   }
 
-  // 🟢 Foydalanuvchiga xabar
   await bot.editMessageText(
     `<b>🎉 Tabriklaymiz! Siz ${gift.title}sovg‘asini oldingiz!</b> \n<u>Referallaringizdan ${gift.price} tasi olib tashlandi.</u>\n\n <b><i>Sabrli bo'ling admin faol bo'lgach sizga buyurtmangizni yetkazib beradi.🌝</i></b>`,
     {
@@ -969,13 +960,12 @@ if (data.startsWith('confirm_gift_')) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main' }]
+          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main', style: "primary" }]
         ]
       }
     }
   );
 
-  // 👤 Foydalanuvchi ma'lumotlari
   const fullName = `${callbackQuery.from.first_name || ''} ${callbackQuery.from.last_name || ''}`.trim();
   const username = callbackQuery.from.username ? `@${callbackQuery.from.username}` : 'yo‘q';
 
@@ -990,7 +980,6 @@ if (data.startsWith('confirm_gift_')) {
 🔗 Username: ${username}
 `.trim();
 
-  // 👨‍💻 Adminlarga yuborish
   for (const adminId of ADMIN_IDS) {
     bot.sendMessage(adminId, userInfoText, { parse_mode: 'HTML' });
   }
@@ -1045,8 +1034,8 @@ if (data.startsWith('select_number_')) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '📩 SMS olish', callback_data: 'get_sms_now' }],
-          [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
+          [{ text: '📩 SMS olish', callback_data: 'get_sms_now', style: "success" }],
+          [{ text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }]
         ]
       }
     }
@@ -1063,8 +1052,7 @@ if (data.startsWith('select_number_')) {
   if (!country) {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Davlat topilmadi.' });
   }
-  
-  // ❗ faqat bu yerda yechiladi
+
   const ok = await decrementReferals(userId, country.price);
   if (!ok) {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '🚫 Yetarli referal yo‘q.' });
@@ -1086,28 +1074,22 @@ if (data.startsWith('select_number_')) {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '📩 SMS olish', callback_data: 'get_sms_now' }],
-            [{ text: '⬅️ Orqaga', callback_data: 'back_to_main' }]
+            [{ text: '📩 SMS olish', callback_data: 'get_sms_now', style: "success" }],
+            [{ text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }]
           ]
         }
       }
     );
   }
 
-// ... (boshqa kodlar o'zgarishsiz)
 
-// get_sms_now callback_query ni o'zgartirish: vaqtni saqlash
 if (data === 'get_sms_now') {
   const selected = userSelections.get(`${userId}_selected_number`);
   if (!selected) {
     return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Raqam tanlanmagan.' });
   }
-
-  // Alert qo'shish
-  await bot.answerCallbackQuery(callbackQuery.id, { text: 'SMS kutilmoqda...' });
-
-  // Vaqtni saqlash
-  userSelections.set(`${userId}_sms_start_time`, Date.now());
+ await bot.answerCallbackQuery(callbackQuery.id, { text: 'SMS kutilmoqda...' });
+ userSelections.set(`${userId}_sms_start_time`, Date.now());
 
   let attempts = 0;
   const cancelTimer = setTimeout(async () => {
@@ -1147,20 +1129,18 @@ if (data === 'get_sms_now') {
   poll();
 }
 
-// cancel_sms callback_query ni o'zgartirish: vaqtni tekshirish
 if (data === 'cancel_sms') {
   const selected = userSelections.get(`${userId}_selected_number`);
   if (!selected) return;
 
   const startTime = userSelections.get(`${userId}_sms_start_time`);
-  if (!startTime || Date.now() - startTime < 180000) {  // 3 daqiqa o'tmagan
+  if (!startTime || Date.now() - startTime < 180000) {  
     return bot.answerCallbackQuery(callbackQuery.id, {
       text: 'Bekor qilish 3 daqiqadan so\'ng ishlaydi.',
       show_alert: true
     });
   }
 
-  // 3 daqiqa o'tgan: bekor qilish va referal qaytarish
   await User.updateOne(
     { userId },
     { $inc: { referalCount: selected.cost || 0 } }
@@ -1175,7 +1155,7 @@ if (data === 'cancel_sms') {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main' }]
+          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main', style: "primary" }]
         ]
       }
     }
