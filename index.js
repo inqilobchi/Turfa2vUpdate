@@ -704,6 +704,7 @@ return bot.editMessageText("🌍 Qaysi davlatdan raqam xohlaysiz?", {
   message_id: msg.message_id,
   reply_markup: { inline_keyboard: countryButtons }
 });
+}  
 if (data === 'next_page') {
   const selections = userSelections.get(userId);
   if (!selections || selections.currentPage >= selections.totalPages - 1) {
