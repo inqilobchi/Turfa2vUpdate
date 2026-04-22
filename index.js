@@ -236,6 +236,15 @@ const countries = {
   //'7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
 const PHONE_RE = /(\+?\d[\d\s\-\(\)]{6,}\d)/g;
+async function fetchHtml(url) {
+  try {
+    const res = await axios.get(url);
+    return res.data;
+  } catch (err) {
+    console.error(`❌ fetchHtml error: ${url}`, err.message);
+    return null;
+  }
+}
 async function safeScrape(countryKey, countries) {
   try {
     return await scrapeCountry(countryKey, countries);
