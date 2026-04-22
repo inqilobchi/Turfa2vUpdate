@@ -12,8 +12,8 @@ const MONGO_URI = process.env.MONGO_URI;
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
 const tempReferrers = new Map(); 
 const userSelections = new Map();
-const MAX_ATTEMPTS = 40;  // 40 * 15 soniya = 10 daqiqa
-const checkInterval = 15000;  // 15 soniya
+const MAX_ATTEMPTS = 40; 
+const checkInterval = 15000;  
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { webHook: true });
 
@@ -62,7 +62,7 @@ mongoose.connect(MONGO_URI, {
   console.error('MongoDB ulanishda xatolik:', err);
   process.exit(1);
 });
-// Obuna tekshiruvchi
+
 async function isUserSubscribed(userId) {
   if (!REQUIRED_CHANNELS.length) return true; 
 
@@ -136,12 +136,10 @@ async function showNumberPage(chatId, messageId, userId, userSelections) {
     });
   }
 
-  // Ikki ustunli keyboard yaratish (har qatorda 2 ta raqam)
   const buttons = [];
-  for (let i = 0; i < pageNumbers.length; i += 2) {  // Har ikkitasini bir qatorga
+  for (let i = 0; i < pageNumbers.length; i += 2) {  
     const row = [];
     
-    // Birinchi raqam (chap ustun)
 const item1 = pageNumbers[i];
 let siteLabel1 = '';
 if (item1.site.includes('onlinesim.io')) {
@@ -171,7 +169,7 @@ if (i + 1 < pageNumbers.length) {
     callback_data: `select_number_${item2.site.includes('onlinesim.io') ? 'onlinesim' : item2.site === receiveSite ? 'receive' : '7sim'}_${startIdx + i + 1}` 
   });
 } else {
-      row.push({ text: '—', callback_data: null });  // Bo'sh joy
+      row.push({ text: '—', callback_data: null }); 
     }
 
     buttons.push(row);
@@ -180,20 +178,19 @@ if (i + 1 < pageNumbers.length) {
   // Pagination tugmalari
   const paginationRow = [];
   if (currentPage > 0) {
-    paginationRow.push({ text: '⬅️ Oldingi', callback_data: 'prev_page' });
+    paginationRow.push({ text: '⬅️ Oldingi', callback_data: 'prev_page', style: "success" });
   }
-  paginationRow.push({ text: '🛎 Orqaga', callback_data: 'back_to_main' });
+  paginationRow.push({ text: '🛎 Orqaga', callback_data: 'back_to_main', style: "danger" });
   if (currentPage < totalPages - 1 && allNumbers.length > pageSize) {
-    paginationRow.push({ text: '➡️ Keyingi', callback_data: 'next_page' });
+    paginationRow.push({ text: '➡️ Keyingi', callback_data: 'next_page', style: "success" });
   }
 
   if (paginationRow.length > 1 || (paginationRow.length === 1 && paginationRow[0].callback_data !== 'back_to_main')) {
     buttons.push(paginationRow);
   } else {
-    buttons.push([{ text: '🛎 Orqaga', callback_data: 'back_to_main' }]);
+    buttons.push([{ text: '🛎 Orqaga', callback_data: 'back_to_main', style: "danger" }]);
   }
 
-  // Matn: Sahifa ma'lumoti
   let siteInfo;
   if (currentPage === 0) {
     siteInfo = `📱 Raqamni tanlang (Sahifa ${currentPage + 1}/${totalPages}):`;
@@ -211,7 +208,6 @@ if (i + 1 < pageNumbers.length) {
 
 const receiveSite = 'https://receive-sms-online.info';
 const sevenSimSite = 'https://temp-sms.org';
-// Eski onlineSimSites va boshqa saytlar o'rniga yangi countries obyekti
 const countries = {
   'de': { name: '🇩🇪 Germaniya', price: 12, sites: ['https://sms24.me/en/countries/de'] },
   'kr': { name: '🇰🇷 Koreya', price: 13, sites: ['https://sms24.me/en/countries/kr', 'https://sms24.me/en/countries/kr/2', 'https://sms24.me/en/countries/kr/3', 'https://sms24.me/en/countries/kr/4'] },
@@ -258,7 +254,6 @@ async function fetchHtml(url) {
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
     const html = await res.text();
-    // console.log(`✅ ${url} dan HTML yuklandi (uzunlik: ${html.length})`);
     return html;
   } catch (err) {
     console.error('fetchHtml error', url, err && err.message);
@@ -307,7 +302,6 @@ async function scrapeSite(url) {
         const phone = m.replace(/[^\d+]/g, '');
         if (filterPhone(phone, url)) {
           results.push({ site: url, phone, href });
-          // console.log(`📱 Receive raqam topildi: ${phone} (href: ${href})`);
         }
       }
     });
@@ -321,7 +315,7 @@ async function scrapeSite(url) {
       }
     }
     console.log(`✅ Receive dan unique raqamlar: ${unique.length}`);
-    return unique.slice(0, 64);  // Faqat 4 ta (birinchi sahifa uchun)
+    return unique.slice(0, 64);  
   } catch (err) {
     console.error('scrapeSite failed', url, err && err.message);
     return [];
@@ -331,7 +325,7 @@ async function scrapeSite(url) {
 async function scrapeSevenSim(url) {
   try {
     const html = await fetchHtml(url);
-    const $ = cheerio.load(html);  // Bu yerda \ yo'q
+    const $ = cheerio.load(html); 
     const results = [];
 
     const selectors = ['a.number', 'a[href^="/number/"]', '.number-item a', 'td a[href*="/number/"]'];
@@ -414,7 +408,6 @@ async function scrapeOnlineSim(url) {
     const html = await fetchHtml(url);
     const $ = cheerio.load(html);
     const results = [];
-    // Onlinesim.io uchun selectorlarni taxmin qilish (raqamlar <a> teglarida bo'lishi mumkin)
     $('a').each((i, el) => {
       const $el = $(el);
       const text = $el.text().replace(/\s+/g, ' ').trim();
@@ -441,7 +434,7 @@ async function scrapeOnlineSim(url) {
       }
     }
     console.log(`✅ ${url} dan unique raqamlar: ${unique.length}`);
-    return unique.slice(0, 20);  // Chegaralash
+    return unique.slice(0, 20);  
   } catch (err) {
     console.error('scrapeOnlineSim failed', url, err && err.message);
     return [];
@@ -486,7 +479,6 @@ if (referrerId && referrerId !== userId) {
       { $addToSet: { referals: userId }, $inc: { referalCount: 1 } }
     );
   } else {
-    // Agar referrer bazada yo'q bo‘lsa, uni yaratamiz
     await addUser(referrerId);
     await User.updateOne(
       { userId: referrerId },
@@ -496,7 +488,6 @@ if (referrerId && referrerId !== userId) {
 
   userDoc.referrer = referrerId;
 
-  // Referal haqida xabar
   bot.sendMessage(referrerId, `<b>🎉 Sizga yangi referal qo'shildi!</b>\n<a href='tg://user?id=${userId}'>👤Ro'yxatdan o'tdi : ${userId}</a> `, {parse_mode : 'HTML'});
 }
 
@@ -507,7 +498,6 @@ async function decrementReferals(userId, count = 5) {
   const user = await getUser(userId);
   if (!user || user.referalCount < count) return false;
 
-  // Oxirgi 'count' ta referalni olib tashlash
   const newReferals = user.referals.slice(0, user.referals.length - count);
 
   await User.updateOne(
@@ -519,15 +509,15 @@ async function decrementReferals(userId, count = 5) {
 function termsAgreementMessage() {
   return {
     text: `<b>📜 Foydalanish shartlari</b>
-
-Botdan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz:
-
-• xizmat vaqtincha ishlamasligi mumkin
-• SMS kod kechikib kelishi mumkin
-• noto‘g‘ri foydalanish uchun javobgarlik foydalanuvchiga tegishli
-• referal va sovg‘alar qaytarilish qoidalari bot shartlariga asosan ishlaydi
-
-Davom etish uchun pastdagi tugmani bosing.`,
+<b>Botdan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz:</b>
+<blockquoute>
+• Barcha xizmatlar bepul faqat ulardan foydalanishni bilsangiz kifoya. 
+• Telegram uchun raqamlarga SMS kod kechikib kelishi yoki umuman kelmasligi mumkin. Buning uchun admin javobgar emas.
+• Noto‘g‘ri foydalanish uchun javobgarlik foydalanuvchiga tegishli, adminni bekorga bezovta qilmang.
+• Referal va sovg‘alar qaytarilish qoidalari bot shartlariga asosan ishlaydi.
+• Qoidalarga rozilik bildirgach e'tirozlar qabul qilinmaydi.
+</blockquoute>
+<b>⬇️ Davom etish uchun pastdagi tugmani bosing:</b>`,
     options: {
       parse_mode: 'HTML',
       reply_markup: {
@@ -542,8 +532,8 @@ function mainMenu() {
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📞Raqam olish🌐', callback_data: 'get_number' }],
-        [{text: `🎁Sovg'a olish🌹`, callback_data : 'get_gift'}],
+        [{ text: '📞Raqam olish🌐', callback_data: 'get_number', style: "primary" }],
+        [{text: `🎁Sovg'a olish🌹`, callback_data : 'get_gift', style: "success"}],
         [{ text: '👥Referal tizimi🔗', callback_data: 'ref_system' }],
       ]
     }
