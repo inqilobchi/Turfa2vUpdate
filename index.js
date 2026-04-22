@@ -270,8 +270,10 @@ async function fetchHtml(url) {
 async function fetchSMS24WithPuppeteer(url) {
   let browser;
   try {
-    browser = await puppeteer.launch({
+    // Cache yo'lini Render uchun sozlang
+    const puppeteerConfig = {
       headless: 'new',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -280,31 +282,44 @@ async function fetchSMS24WithPuppeteer(url) {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
-        '--single-process',  // ← BU MUHIM!
+        '--single-process',
+        '--no-zygote',
+        '--disable-dev-tools',
+        '--disable-extensions',
         '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
         '--window-size=1920,1080'
-      ]
-    });
+      ],
+      // Cache ni .puppeteer papkasiga saqlash
+      cacheDirectory: './.puppeteer/cache'
+    };
+
+    browser = await puppeteer.launch(puppeteerConfig);
     
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
     
+    console.log(`🔄 SMS24.ME yuklanmoqda: ${url}`);
     await page.goto(url, { 
       waitUntil: 'networkidle2',
-      timeout: 30000 
+      timeout: 25000 
     });
     
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000);
     const html = await page.content();
-    console.log(`✅ SMS24.ME yuklandi: ${url}`);
+    console.log(`✅ SMS24.ME muvaffaqiyatli: ${url}`);
     return html;
     
   } catch (err) {
-    console.error('Puppeteer xato:', url, err.message);
+    console.error('🚫 Puppeteer XATO:', url, err.message);
     return '';
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      try {
+        await browser.close();
+      } catch(e) {}
+    }
   }
 }
 function parseMessagesGeneric(html) {
