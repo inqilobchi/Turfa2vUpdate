@@ -4,7 +4,11 @@ const userSchema = new mongoose.Schema({
   userId: { type: Number, required: true, unique: true },
   referals: { type: [Number], default: [] },
   referalCount: { type: Number, default: 0 },
-  referrer: { type: Number, default: null }
+  referrer: { type: Number, default: null },
+  agreedToTerms: {
+    type: Boolean,
+    default: false
+  }
 });
 
 module.exports = mongoose.model('User', userSchema);
