@@ -236,32 +236,47 @@ const countries = {
   'can' : { name: '🇨🇦 Kanada', price: 8, sites: ['https://sms24.me/en/countries/ca', 'https://sms24.me/en/countries/ca/2', 'https://sms24.me/en/countries/ca/3', 'https://sms24.me/en/countries/ca/4', 'https://sms24.me/en/countries/ca/5', 'https://sms24.me/en/countries/ca/6', 'https://sms24.me/en/countries/ca/7', 'https://sms24.me/en/countries/ca/8', 'https://sms24.me/en/countries/ca/9', 'https://sms24.me/en/countries/ca/10', 'https://sms24.me/en/countries/ca/11', 'https://sms24.me/en/countries/ca/12', 'https://sms24.me/en/countries/ca/13', 'https://sms24.me/en/countries/ca/14', 'https://sms24.me/en/countries/ca/15']},
   //'7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 const PHONE_RE = /(\+?\d[\d\s\-\(\)]{6,}\d)/g;
-async function fetchHtml(url) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage'
-    ]
-  });
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+];
 
-  const page = await browser.newPage();
+function getRandomUA() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
 
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36'
-  );
+async function fetchHtml(url, retries = 3) {
+  try {
+    const response = await axios.get(url, {
+      timeout: 30000,
+      validateStatus: () => true,
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.google.com/'
+      }
+    });
 
-  await page.goto(url, {
-    waitUntil: 'networkidle2',
-    timeout: 60000
-  });
+    return response.data;
+  } catch (err) {
+    if (retries > 0) {
+      console.log(`Retry... ${url}`);
+      await new Promise(r => setTimeout(r, 2000));
+      return fetchHtml(url, retries - 1);
+    }
 
-  const html = await page.content();
-  await browser.close();
-
-  return html;
+    console.error('fetchHtml error:', err.message);
+    return null;
+  }
 }
 async function safeScrape(countryKey, countries) {
   try {
@@ -308,6 +323,7 @@ async function scrapeCountry(countryKey, countries) {
   let all = [];
 
   for (const url of country.sites) {
+    await sleep(2000);
     const html = await fetchHtml(url);
     if (!html) continue;
 
