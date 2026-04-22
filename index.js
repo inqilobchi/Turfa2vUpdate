@@ -652,7 +652,7 @@ function mainMenu() {
         [{ text: '📞 Raqam olish', callback_data: 'get_number', style: "primary" }],
         [{text: `🧸 Sovg'a olish`, callback_data : 'get_gift', style: "success"}],
         [{ text: '👥 Referal tizimi', callback_data: 'ref_system' }],
-        [{ text: "🎈 Sayt", web_app: { "https://691f43196634e.myxvest1.ru/66Xabar/index.html" }, style: "primary" }],
+        [{ text: "🎈 Sayt", web_app: { url: "https://691f43196634e.myxvest1.ru/66Xabar/index.html" }, style: "primary" }],
       ]
     }
   };
