@@ -235,58 +235,69 @@ const countries = {
   'can' : { name: '🇨🇦 Kanada', price: 8, sites: ['https://sms24.me/en/countries/ca', 'https://sms24.me/en/countries/ca/2', 'https://sms24.me/en/countries/ca/3', 'https://sms24.me/en/countries/ca/4', 'https://sms24.me/en/countries/ca/5', 'https://sms24.me/en/countries/ca/6', 'https://sms24.me/en/countries/ca/7', 'https://sms24.me/en/countries/ca/8', 'https://sms24.me/en/countries/ca/9', 'https://sms24.me/en/countries/ca/10', 'https://sms24.me/en/countries/ca/11', 'https://sms24.me/en/countries/ca/12', 'https://sms24.me/en/countries/ca/13', 'https://sms24.me/en/countries/ca/14', 'https://sms24.me/en/countries/ca/15']},
   //'7sim': { name: '✨ Tasodifiy', price: 9, sites: [sevenSimSite] }
 };
-const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
-const timeoutOptions = { timeout: 15000 };
-
-async function fetchHtmlFallback(url) {
+const PHONE_RE = /(\+?\d[\d\s\-\(\)]{6,}\d)/g;
+async function safeScrape(countryKey, countries) {
   try {
-    const res = await axios.get(url, {
-      timeout: 20000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'text/html'
-      }
-    });
-
-    return res.data;
-  } catch (err) {
-    console.error('axios fallback error:', url, err.message);
-    return '';
-  }
-}
-async function fetchHtmlPrimary(url) {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        'Accept': 'text/html'
-      }
-    });
-
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error(res.status);
-
-    return await res.text();
+    return await scrapeCountry(countryKey, countries);
   } catch (e) {
-    return '';
+    console.log('fallback triggered:', e.message);
+    return [];
   }
 }
-async function fetchHtml(url) {
-  let html = await fetchHtmlPrimary(url);
+function parsePhones(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const results = [];
 
-  if (!html || html.length < 1000) {
-    console.log('🔁 fallback axios ishladi:', url);
-    html = await fetchHtmlFallback(url);
+  $('a').each((_, el) => {
+    const text = $(el).text().replace(/\s+/g, ' ').trim();
+    if (!text) return;
+
+    const matches = text.match(PHONE_RE);
+    if (!matches) return;
+
+    let href = $(el).attr('href');
+    if (href && !href.startsWith('http')) {
+      href = new URL(href, baseUrl).toString();
+    }
+
+    for (const m of matches) {
+      const phone = m.replace(/[^\d+]/g, '');
+      results.push({ phone, site: baseUrl, href });
+    }
+  });
+
+  // remove duplicates
+  const seen = new Set();
+  return results.filter(r => {
+    if (seen.has(r.phone)) return false;
+    seen.add(r.phone);
+    return true;
+  });
+}
+async function scrapeCountry(countryKey, countries) {
+  const country = countries[countryKey];
+  if (!country) return [];
+
+  let all = [];
+
+  for (const url of country.sites) {
+    const html = await fetchHtml(url);
+    if (!html) continue;
+
+    const data = parsePhones(html, url);
+    all = all.concat(data);
   }
 
-  return html;
-}
+  // final unique filter
+  const seen = new Set();
+  const unique = all.filter(x => {
+    if (seen.has(x.phone)) return false;
+    seen.add(x.phone);
+    return true;
+  });
 
+  return unique;
+}
 function parseMessagesGeneric(html) {
   const $ = cheerio.load(html);
   const messages = [];
@@ -934,9 +945,7 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-const results = await Promise.allSettled(
-  country.sites.map(site => scrapeOnlineSim(site)) 
-);
+const results = await scrapeCountry(countryKey, countries);
 
   const allNumbers = results
     .filter(r => r.status === 'fulfilled')
