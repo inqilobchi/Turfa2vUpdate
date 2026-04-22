@@ -267,44 +267,44 @@ async function fetchHtml(url) {
   }
 }
 
-// 🔥 SMS24.ME PUPPETEER BYPASS
 async function fetchSMS24WithPuppeteer(url) {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--window-size=1920,1080'
-    ]
-  });
-  
+  let browser;
   try {
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--single-process',  // ← BU MUHIM!
+        '--disable-web-security',
+        '--window-size=1920,1080'
+      ]
+    });
+    
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
     
-    // Cloudflare bypass
     await page.goto(url, { 
       waitUntil: 'networkidle2',
       timeout: 30000 
     });
     
-    // Sahifa yuklanishini kutish
     await page.waitForTimeout(3000);
-    
     const html = await page.content();
-    console.log(`✅ Puppeteer SMS24.ME: ${url} OK`);
+    console.log(`✅ SMS24.ME yuklandi: ${url}`);
     return html;
+    
   } catch (err) {
-    console.error('Puppeteer error:', url, err.message);
+    console.error('Puppeteer xato:', url, err.message);
     return '';
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 }
 function parseMessagesGeneric(html) {
