@@ -468,12 +468,13 @@ async function addUser(userId, referrerId = null) {
   let exists = await getUser(userId);
   if (exists) return exists;
 
-  const userDoc = new User({
-    userId,
-    referals: [],
-    referalCount: 0,
-    referrer: null
-  });
+const userDoc = new User({
+  userId,
+  referals: [],
+  referalCount: 0,
+  referrer: null,
+  agreedToTerms: false
+});
 
 if (referrerId && referrerId !== userId) {
   const referrer = await getUser(referrerId);
@@ -515,7 +516,28 @@ async function decrementReferals(userId, count = 5) {
   );
   return true;
 }
+function termsAgreementMessage() {
+  return {
+    text: `<b>📜 Foydalanish shartlari</b>
 
+Botdan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz:
+
+• xizmat vaqtincha ishlamasligi mumkin
+• SMS kod kechikib kelishi mumkin
+• noto‘g‘ri foydalanish uchun javobgarlik foydalanuvchiga tegishli
+• referal va sovg‘alar qaytarilish qoidalari bot shartlariga asosan ishlaydi
+
+Davom etish uchun pastdagi tugmani bosing.`,
+    options: {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '✅ Tasdiqlayman', callback_data: 'accept_terms' }]
+        ]
+      }
+    }
+  };
+}
 function mainMenu() {
   return {
     reply_markup: {
@@ -564,8 +586,14 @@ bot.onText(/\/start(?: (\d+))?/, async (msg, match) => {
     return bot.sendMessage(chatId, sub.text, sub.options);
   }
   
-  await addUser(userId, referrerId);
-  await bot.sendMessage(chatId, `🚀`, mainMenu());
+  const user = await addUser(userId, referrerId);
+
+if (!user.agreedToTerms) {
+  const terms = termsAgreementMessage();
+  return bot.sendMessage(chatId, terms.text, terms.options);
+}
+
+await bot.sendMessage(chatId, `🚀`, mainMenu());
 });
 
 bot.on('callback_query', async (callbackQuery) => {
@@ -574,13 +602,34 @@ bot.on('callback_query', async (callbackQuery) => {
   const userId = callbackQuery.from.id;
   const chatId = msg.chat.id;
 
-  // 🔒 Obuna tekshirish
+  if (data === 'accept_terms') {
+  await User.updateOne(
+    { userId },
+    { $set: { agreedToTerms: true } }
+  );
+
+  await bot.answerCallbackQuery(callbackQuery.id, {
+    text: '✅ Rozilik tasdiqlandi'
+  });
+
+  return bot.editMessageText('🚀', {
+    chat_id: chatId,
+    message_id: msg.message_id,
+    ...mainMenu()
+  });
+}
 if (data === 'check_subscription') {
   if (await isUserSubscribed(userId)) {
     const referrerId = tempReferrers.get(userId) || null;
-    await addUser(userId, referrerId);
-    tempReferrers.delete(userId);
-    return bot.sendMessage(chatId, '✅ Obuna tasdiqlandi!', mainMenu());
+    const user = await addUser(userId, referrerId);
+tempReferrers.delete(userId);
+
+if (!user.agreedToTerms) {
+  const terms = termsAgreementMessage();
+  return bot.sendMessage(chatId, terms.text, terms.options);
+}
+
+return bot.sendMessage(chatId, '✅ Obuna tasdiqlandi!', mainMenu());
   } else {
     const sub = await getSubscriptionMessage();
     return bot.sendMessage(chatId, sub.text, sub.options);
