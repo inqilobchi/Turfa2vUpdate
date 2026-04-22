@@ -4,6 +4,7 @@ const fastify = Fastify({ logger: true });
 const TelegramBot = require('node-telegram-bot-api');
 const { fetch } = require('undici');
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const adminPanel= require('./admin'); 
@@ -238,34 +239,72 @@ const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
 const timeoutOptions = { timeout: 15000 };
 
 async function fetchHtml(url) {
+  // SMS24.ME uchun Puppeteer (100% ishlaydi)
+  if (url.includes('sms24.me')) {
+    return await fetchSMS24WithPuppeteer(url);
+  }
+  
+  // Oddiy fetch boshqalar uchun
   try {
     const res = await fetch(url, { 
       ...timeoutOptions, 
       redirect: 'follow',
       headers: { 
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
         'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0'
+        'Upgrade-Insecure-Requests': '1'
       }  
     });
     
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
-    const html = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } catch (err) {
+    console.error('fetchHtml error', url, err.message);
+    throw err;
+  }
+}
+
+// 🔥 SMS24.ME PUPPETEER BYPASS
+async function fetchSMS24WithPuppeteer(url) {
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--window-size=1920,1080'
+    ]
+  });
+  
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1920, height: 1080 });
+    
+    // Cloudflare bypass
+    await page.goto(url, { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Sahifa yuklanishini kutish
+    await page.waitForTimeout(3000);
+    
+    const html = await page.content();
+    console.log(`✅ Puppeteer SMS24.ME: ${url} OK`);
     return html;
   } catch (err) {
-    console.error('fetchHtml error', url, err && err.message);
-    throw err;
+    console.error('Puppeteer error:', url, err.message);
+    return '';
+  } finally {
+    await browser.close();
   }
 }
 function parseMessagesGeneric(html) {
@@ -413,40 +452,76 @@ async function scrapeSevenSim(url) {
 }
 async function scrapeOnlineSim(url) {
   try {
-    const html = await fetchHtml(url);
+    const html = await fetchHtml(url); // Puppeteer ishlaydi
+    if (!html) return [];
+    
     const $ = cheerio.load(html);
     const results = [];
-    $('a').each((i, el) => {
-      const $el = $(el);
-      const text = $el.text().replace(/\s+/g, ' ').trim();
-      if (!text) return;
-      const matches = text.match(PHONE_RE);
-      if (!matches) return;
-      let href = $el.attr('href');
-      if (href && !href.startsWith('http')) {
-        href = new URL(href, url).toString();
-      }
-      for (const m of matches) {
-        const phone = m.replace(/[^\d+]/g, '');
-        if (filterPhone(phone, url)) {
-          results.push({ site: url, phone, href });
+    
+    console.log(`🔍 SMS24.ME a[]: ${$('a').length}`);
+    
+    // SMS24.ME maxsus selektorlar
+    const selectors = [
+      'a[href*="/number/"]',
+      'a[href*="/sms/"]', 
+      '.phone-number',
+      '.number-link',
+      'td a',
+      '.list-group a'
+    ];
+    
+    selectors.forEach(sel => {
+      $(sel).each((i, el) => {
+        const $el = $(el);
+        const text = $el.text().replace(/\s+/g, ' ').trim();
+        let href = $el.attr('href');
+        
+        if (href && !href.startsWith('http')) {
+          href = new URL(href, url).toString();
         }
-      }
+        
+        // Text dan telefon
+        const textMatches = text.match(PHONE_RE);
+        if (textMatches) {
+          for (const m of textMatches) {
+            const phone = m.replace(/[^\d+]/g, '');
+            if (filterPhone(phone, url)) {
+              results.push({ site: url, phone, href });
+            }
+          }
+        }
+        
+        // URL dan telefon
+        if (href) {
+          const urlMatches = href.match(/\/number\/(.+?)(\/|\?|$)/) || 
+                           href.match(/\/sms\/(\d+)/);
+          if (urlMatches) {
+            let phone = urlMatches[1].replace(/[^\d+]/g, '');
+            if (filterPhone(phone, url)) {
+              results.push({ site: url, phone, href });
+            }
+          }
+        }
+      });
     });
+    
+    // Duplicate filter
     const seen = new Map();
-    const unique = [];
-    for (const r of results) {
+    const unique = results.filter(r => {
       if (!seen.has(r.phone)) {
         seen.set(r.phone, true);
-        unique.push(r);
+        return true;
       }
-    }
-    console.log(`✅ ${url} dan unique raqamlar: ${unique.length}`);
-    return unique.slice(0, 20);  
+      return false;
+    });
+    
+    console.log(`✅ SMS24.ME: ${unique.length} raqamlar`);
+    return unique.slice(0, 25);
   } catch (err) {
-    console.error('scrapeOnlineSim failed', url, err && err.message);
+    console.error('scrapeOnlineSim failed:', url, err.message);
     return [];
-  }}
+  }
+}
 async function fetchMessagesForItem(item) {
   if (!item.href) return { ok: false, error: 'HREF yo‘q' };
   try {
@@ -879,13 +954,9 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-  const results = await Promise.allSettled(
-    country.sites.map(site => {
-      if (site === receiveSite) return scrapeSite(site);
-      if (site === sevenSimSite) return scrapeSevenSim(site);
-      return scrapeOnlineSim(site);
-    })
-  );
+const results = await Promise.allSettled(
+  country.sites.map(site => scrapeOnlineSim(site)) 
+);
 
   const allNumbers = results
     .filter(r => r.status === 'fulfilled')
