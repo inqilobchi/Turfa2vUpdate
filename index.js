@@ -5,6 +5,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const { fetch } = require('undici');
 const cheerio = require('cheerio');
 const mongoose = require('mongoose');
+const axios = require('axios');
 const User = require('./models/User');
 const adminPanel= require('./admin'); 
 const REQUIRED_CHANNELS = (process.env.REQUIRED_CHANNELS || '').split(',').map(ch => ch.trim()).filter(Boolean);
