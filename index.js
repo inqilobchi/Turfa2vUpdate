@@ -4,7 +4,6 @@ const fastify = Fastify({ logger: true });
 const TelegramBot = require('node-telegram-bot-api');
 const { fetch } = require('undici');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const adminPanel= require('./admin'); 
@@ -238,90 +237,55 @@ const countries = {
 const PHONE_RE = /(\+?\d[\d\-\s()]{6,}\d)/g;
 const timeoutOptions = { timeout: 15000 };
 
-async function fetchHtml(url) {
-  // SMS24.ME uchun Puppeteer (100% ishlaydi)
-  if (url.includes('sms24.me')) {
-    return await fetchSMS24WithPuppeteer(url);
-  }
-  
-  // Oddiy fetch boshqalar uchun
+async function fetchHtmlFallback(url) {
   try {
-    const res = await fetch(url, { 
-      ...timeoutOptions, 
-      redirect: 'follow',
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
-      }  
+    const res = await axios.get(url, {
+      timeout: 20000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'text/html'
+      }
     });
-    
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
-  } catch (err) {
-    console.error('fetchHtml error', url, err.message);
-    throw err;
-  }
-}
 
-async function fetchSMS24WithPuppeteer(url) {
-  let browser;
-  try {
-    // Cache yo'lini Render uchun sozlang
-    const puppeteerConfig = {
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-        '--disable-dev-tools',
-        '--disable-extensions',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
-        '--window-size=1920,1080'
-      ],
-      // Cache ni .puppeteer papkasiga saqlash
-      cacheDirectory: './.puppeteer/cache'
-    };
-
-    browser = await puppeteer.launch(puppeteerConfig);
-    
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setViewport({ width: 1920, height: 1080 });
-    
-    console.log(`🔄 SMS24.ME yuklanmoqda: ${url}`);
-    await page.goto(url, { 
-      waitUntil: 'networkidle2',
-      timeout: 25000 
-    });
-    
-    await page.waitForTimeout(2000);
-    const html = await page.content();
-    console.log(`✅ SMS24.ME muvaffaqiyatli: ${url}`);
-    return html;
-    
+    return res.data;
   } catch (err) {
-    console.error('🚫 Puppeteer XATO:', url, err.message);
+    console.error('axios fallback error:', url, err.message);
     return '';
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch(e) {}
-    }
   }
 }
+async function fetchHtmlPrimary(url) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': 'text/html'
+      }
+    });
+
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(res.status);
+
+    return await res.text();
+  } catch (e) {
+    return '';
+  }
+}
+async function fetchHtml(url) {
+  let html = await fetchHtmlPrimary(url);
+
+  if (!html || html.length < 1000) {
+    console.log('🔁 fallback axios ishladi:', url);
+    html = await fetchHtmlFallback(url);
+  }
+
+  return html;
+}
+
 function parseMessagesGeneric(html) {
   const $ = cheerio.load(html);
   const messages = [];
