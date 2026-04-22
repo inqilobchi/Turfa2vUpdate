@@ -988,20 +988,16 @@ if (data.startsWith('confirm_buy_country_')) {
     });
   }
 
-const results = await scrapeCountry(countryKey, countries);
-
-  const allNumbers = results
-    .filter(r => r.status === 'fulfilled')
-    .flatMap(r => r.value);
-
-  const seen = new Map();
-  const uniqueNumbers = allNumbers.filter(item => {
-    if (!seen.has(item.phone)) {
-      seen.set(item.phone, true);
-      return true;
-    }
-    return false;
-  });
+const allNumbers = await scrapeCountry(countryKey, countries);
+console.log(allNumbers);
+const seen = new Map();
+const uniqueNumbers = allNumbers.filter(item => {
+  if (!seen.has(item.phone)) {
+    seen.set(item.phone, true);
+    return true;
+  }
+  return false;
+});
 
   if (uniqueNumbers.length === 0) {
     await User.updateOne(
