@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node --max-old-space-size=4096 index.js",
-    "postinstall": "mkdir -p .puppeteer/cache && PUPPETEER_CACHE_DIR=.puppeteer/cache npx puppeteer browsers install chrome",
-    "heroku-postbuild": "mkdir -p .puppeteer/cache && PUPPETEER_CACHE_DIR=.puppeteer/cache npx puppeteer browsers install chrome",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "puppeteer": {
