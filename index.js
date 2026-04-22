@@ -1,5 +1,6 @@
 require('dotenv').config();
 const Fastify = require('fastify');
+const puppeteer = require('puppeteer');
 const fastify = Fastify({ logger: true });
 const TelegramBot = require('node-telegram-bot-api');
 const { fetch } = require('undici');
@@ -237,13 +238,19 @@ const countries = {
 };
 const PHONE_RE = /(\+?\d[\d\s\-\(\)]{6,}\d)/g;
 async function fetchHtml(url) {
-  try {
-    const res = await axios.get(url);
-    return res.data;
-  } catch (err) {
-    console.error(`❌ fetchHtml error: ${url}`, err.message);
-    return null;
-  }
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0');
+
+  await page.goto(url, { waitUntil: 'networkidle2' });
+
+  const html = await page.content();
+  await browser.close();
+
+  return html;
 }
 async function safeScrape(countryKey, countries) {
   try {
