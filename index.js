@@ -510,13 +510,13 @@ function termsAgreementMessage() {
   return {
     text: `<b>📜 Foydalanish shartlari</b>
 <b>Botdan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz:</b>
-<blockquoute>
+<blockquote>
 • Barcha xizmatlar bepul faqat ulardan foydalanishni bilsangiz kifoya. 
 • Telegram uchun raqamlarga SMS kod kechikib kelishi yoki umuman kelmasligi mumkin. Buning uchun admin javobgar emas.
 • Noto‘g‘ri foydalanish uchun javobgarlik foydalanuvchiga tegishli, adminni bekorga bezovta qilmang.
 • Referal va sovg‘alar qaytarilish qoidalari bot shartlariga asosan ishlaydi.
 • Qoidalarga rozilik bildirgach e'tirozlar qabul qilinmaydi.
-</blockquoute>
+</blockquote>
 <b>⬇️ Davom etish uchun pastdagi tugmani bosing:</b>`,
     options: {
       parse_mode: 'HTML',
