@@ -252,43 +252,35 @@ function getRandomUA() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-async function fetchHtml(url, retries = 3) {
-  try {
-    const response = await axios.get(url, {
-      timeout: 30000,
-      validateStatus: () => true,
-      headers: {
-        'User-Agent': getRandomUA(),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Connection': 'keep-alive',
-        'Referer': 'https://www.google.com/'
-      }
+async function fetchHtml(url) {
+
+    const browser = await puppeteer.launch({
+        headless: true,
+        executablePath: process.env.PUPPETEER_CACHE_DIR || undefined,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox'
+        ]
     });
 
-    console.log("========== FETCH ==========");
-    console.log("URL:", url);
-    console.log("STATUS:", response.status);
-    console.log("FINAL URL:", response.request?.res?.responseUrl);
-    console.log("HTML LENGTH:", response.data.length);
-    console.log("FIRST 1000 CHARS:");
-    console.log(response.data.substring(0,1000));
-    console.log("===========================");
+    const page = await browser.newPage();
 
-    return response.data;
+    await page.goto(url, {
+        waitUntil: 'networkidle2',
+        timeout: 60000
+    });
 
-  } catch (err) {
-    console.log("FETCH ERROR:", err.message);
+    console.log("TITLE:", await page.title());
+    console.log("URL:", page.url());
 
-    if (retries > 0) {
-      await new Promise(r => setTimeout(r, 2000));
-      return fetchHtml(url, retries - 1);
-    }
+    const html = await page.content();
 
-    return null;
-  }
+    console.log("FIRST 1000:");
+    console.log(html.substring(0,1000));
+
+    await browser.close();
+
+    return html;
 }
 async function safeScrape(countryKey, countries) {
   try {
