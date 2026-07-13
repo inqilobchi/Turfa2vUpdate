@@ -898,7 +898,6 @@ if (data === 'ref_system') {
       parse_mode: 'HTML'
     });
   }
-}
 
   if (data === 'ref_count') {
     const user = await getUser(userId);
