@@ -785,7 +785,8 @@ if (data === 'back_to_main') {
 if (data === 'ads') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
-  await bot.sendSticker(chatId, "CAACAgIAAxkBAAN4alSOOfryPzuLN-wMpc1JLYknx8IAAoZOAAJIiFhJsvTdcsbHwfU8BA");
+  const sticker = await bot.sendSticker(chatId, "CAACAgIAAxkBAAN4alSOOfryPzuLN-wMpc1JLYknx8IAAoZOAAJIiFhJsvTdcsbHwfU8BA");
+  lastStickerId.set(chatId, sticker.message_id);
   return bot.sendMessage(chatId,
 `<b>🤖 Sizga ham shunday bot kerakmi?</b>
 
@@ -838,7 +839,8 @@ if (data === 'ads') {
 if (data === 'bot_info') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
-  await bot.sendSticker(chatId, "CAACAgIAAxkBAANpalSMgP7QXVTRyw8qkd3QUdfYS5MAAk0VAALyVqhJCTZMkrTKpI48BA");
+  const sticker = await bot.sendSticker(chatId, "CAACAgIAAxkBAANpalSMgP7QXVTRyw8qkd3QUdfYS5MAAk0VAALyVqhJCTZMkrTKpI48BA");
+  lastStickerId.set(chatId, sticker.message_id);
   return bot.sendMessage(chatId,
 `<b>📚 Bot haqida</b>
 
@@ -874,7 +876,8 @@ if (data === 'admin_msg') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
   awaitingAdminMessage.set(userId, true);
-  bot.sendSticker(chatId, "CAACAgIAAxkBAANFalSKHDehuaXV5EZ3nE6nIdjYO64AAqJKAAK_ftlKZTaUu6SMlg48BA");
+  const sticker = await bot.sendSticker(chatId, "CAACAgIAAxkBAANFalSKHDehuaXV5EZ3nE6nIdjYO64AAqJKAAK_ftlKZTaUu6SMlg48BA");
+  lastStickerId.set(chatId, sticker.message_id);
   return bot.sendMessage(chatId, '📨 Adminga yubormoqchi bo‘lgan xabaringizni yozing:', {
     reply_markup: {
       inline_keyboard: [
@@ -888,6 +891,11 @@ if (data === 'cancel_admin_msg') {
   awaitingAdminMessage.delete(userId);
   await bot.answerCallbackQuery(callbackQuery.id, { text: 'Bekor qilindi' });
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  const stId = lastStickerId.get(chatId);
+  if (stId) {
+    await bot.deleteMessage(chatId, stId).catch(() => {});
+    lastStickerId.delete(chatId);
+  }
   return bot.sendSticker(chatId, "CAACAgQAAxkBAAMKalSBxaD_PftDrPoqDmhYTTDYrlQAAqYPAAKKfDUKNen1BEDYBHQ8BA", {
     reply_markup: mainMenu().reply_markup
   });
@@ -896,7 +904,8 @@ if (data === 'ref_system') {
   const menu = await referalMenu(userId);
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
-  await bot.sendSticker(chatId, "CAACAgIAAxkBAAMhalSFx5vmOoIT7S95xS8eoTO2MFcAAvdmAALv6IlKih1sPOmx8tA8BA");
+  const sticker = await bot.sendSticker(chatId, "CAACAgIAAxkBAAMhalSFx5vmOoIT7S95xS8eoTO2MFcAAvdmAALv6IlKih1sPOmx8tA8BA");
+  lastStickerId.set(chatId, sticker.message_id);
   return bot.sendMessage(chatId, menu.text, {
     reply_markup: menu.reply_markup,
     parse_mode: 'HTML'
