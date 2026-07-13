@@ -19,6 +19,7 @@ const checkInterval = 15000;
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { webHook: true });
 const awaitingAdminMessage = new Map();
+const lastStickerId = new Map();
 const WEBHOOK_PATH = `/webhook/${token}`;
 const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
 fastify.post(WEBHOOK_PATH, async (req, reply) => {
@@ -772,6 +773,11 @@ return bot.sendMessage(chatId, '✅ Obuna tasdiqlandi!', mainMenu());
 if (data === 'back_to_main') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  const stId = lastStickerId.get(chatId);
+  if (stId) {
+    await bot.deleteMessage(chatId, stId).catch(() => {});   
+    lastStickerId.delete(chatId);
+  }
   return bot.sendSticker(chatId, "CAACAgQAAxkBAAMKalSBxaD_PftDrPoqDmhYTTDYrlQAAqYPAAKKfDUKNen1BEDYBHQ8BA", {
     reply_markup: mainMenu().reply_markup
   });
@@ -780,6 +786,7 @@ if (data === 'ads') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
   await bot.sendSticker(chatId, "CAACAgIAAxkBAAN4alSOOfryPzuLN-wMpc1JLYknx8IAAoZOAAJIiFhJsvTdcsbHwfU8BA");
+  lastStickerId.set(chatId, sticker.message_id); 
   return bot.sendMessage(chatId,
 `<b>🤖 Sizga ham shunday bot kerakmi?</b>
 
