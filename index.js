@@ -292,25 +292,21 @@ function parsePhones(html, baseUrl) {
   const $ = cheerio.load(html);
   const results = [];
 
-  $('a').each((_, el) => {
-    const text = $(el).text().replace(/\s+/g, ' ').trim();
-    if (!text) return;
+  // Faqat raqam kartochkalarini tanlaymiz (/numbers/ href bo'yicha)
+  $('a[href*="/numbers/"]').each((_, el) => {
+    const $el = $(el);
 
-    const matches = text.match(PHONE_RE);
-    if (!matches) return;
+    // Raqam faqat shu maxsus <p> ichida, boshqa matn bilan aralashmaydi
+    const phoneText = $el.find('p.font-mono').first().text().trim();
+    if (!phoneText) return;
 
-    let href = $(el).attr('href');
-    if (href && !href.startsWith('http')) {
-      href = new URL(href, baseUrl).toString();
-    }
+    const phone = phoneText.replace(/[^\d+]/g, '');
+    if (!phone) return;
 
-    for (const m of matches) {
-      const phone = m.replace(/[^\d+]/g, '');
-      results.push({ phone, site: baseUrl, href });
-    }
+    const href = $el.attr('href');
+    results.push({ phone, site: baseUrl, href });
   });
 
-  // remove duplicates
   const seen = new Set();
   return results.filter(r => {
     if (seen.has(r.phone)) return false;
