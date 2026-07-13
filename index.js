@@ -252,51 +252,31 @@ function getRandomUA() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-let browserInstance = null;
-
-async function getBrowser() {
-  if (!browserInstance || !browserInstance.isConnected()) {
-    browserInstance = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process'
-      ]
-    });
-  }
-  return browserInstance;
-}
-
-async function fetchHtml(url, retries = 2) {
-  let page;
+async function fetchHtml(url, retries = 3) {
   try {
-    const browser = await getBrowser();
-    page = await browser.newPage();
-    await page.setUserAgent(getRandomUA());
-    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
-    await page.setViewport({ width: 1280, height: 800 });
+    const response = await axios.get(url, {
+      timeout: 30000,
+      validateStatus: () => true,
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.google.com/'
+      }
+    });
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-
-    // sahifa to'liq yuklanishi uchun ozgina kutamiz
-    await new Promise(r => setTimeout(r, 1500));
-
-    const html = await page.content();
-    await page.close();
-
-    console.log(`✅ ${url} -> HTML uzunligi: ${html.length}`);
-    return html;
+    return response.data;
   } catch (err) {
-    if (page) await page.close().catch(() => {});
-    console.error(`❌ fetchHtml xatolik [${url}]:`, err.message);
-
     if (retries > 0) {
+      console.log(`Retry... ${url}`);
       await new Promise(r => setTimeout(r, 2000));
       return fetchHtml(url, retries - 1);
     }
+
+    console.error('fetchHtml error:', err.message);
     return null;
   }
 }
