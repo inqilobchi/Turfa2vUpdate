@@ -254,28 +254,16 @@ function getRandomUA() {
 
 async function fetchHtml(url, retries = 3) {
   try {
-    const response = await axios.get(url, {
-      timeout: 30000,
-      validateStatus: () => true,
-      headers: {
-        'User-Agent': getRandomUA(),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Connection': 'keep-alive',
-        'Referer': 'https://www.google.com/'
-      }
-    });
-
+    // ScraperAPI orqali (yoki ScrapingBee, ScrapeOps kabi shunga o'xshash xizmat)
+    const proxyUrl = `https://api.scraperapi.com/?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(url)}`;
+    
+    const response = await axios.get(proxyUrl, { timeout: 60000 });
     return response.data;
   } catch (err) {
     if (retries > 0) {
-      console.log(`Retry... ${url}`);
       await new Promise(r => setTimeout(r, 2000));
       return fetchHtml(url, retries - 1);
     }
-
     console.error('fetchHtml error:', err.message);
     return null;
   }
