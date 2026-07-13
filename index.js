@@ -891,13 +891,11 @@ if (data === 'ref_system') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
   await bot.sendSticker(chatId, "CAACAgIAAxkBAAMhalSFx5vmOoIT7S95xS8eoTO2MFcAAvdmAALv6IlKih1sPOmx8tA8BA");
-  return bot.editMessageText(menu.text, {
-      chat_id: chatId,
-      message_id: msg.message_id,
-      reply_markup: menu.reply_markup,
-      parse_mode: 'HTML'
-    });
-  }
+  return bot.sendMessage(chatId, menu.text, {
+    reply_markup: menu.reply_markup,
+    parse_mode: 'HTML'
+  });
+}
 
   if (data === 'ref_count') {
     const user = await getUser(userId);
