@@ -252,35 +252,33 @@ function getRandomUA() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-async function fetchHtml(url) {
-
-    const browser = await puppeteer.launch({
-        headless: true,
-        executablePath: process.env.PUPPETEER_CACHE_DIR || undefined,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox'
-        ]
+async function fetchHtml(url, retries = 3) {
+  try {
+    const response = await axios.get(url, {
+      timeout: 30000,
+      validateStatus: () => true,
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.google.com/'
+      }
     });
 
-    const page = await browser.newPage();
+    return response.data;
+  } catch (err) {
+    if (retries > 0) {
+      console.log(`Retry... ${url}`);
+      await new Promise(r => setTimeout(r, 2000));
+      return fetchHtml(url, retries - 1);
+    }
 
-    await page.goto(url, {
-        waitUntil: 'networkidle2',
-        timeout: 60000
-    });
-
-    console.log("TITLE:", await page.title());
-    console.log("URL:", page.url());
-
-    const html = await page.content();
-
-    console.log("FIRST 1000:");
-    console.log(html.substring(0,1000));
-
-    await browser.close();
-
-    return html;
+    console.error('fetchHtml error:', err.message);
+    return null;
+  }
 }
 async function safeScrape(countryKey, countries) {
   try {
