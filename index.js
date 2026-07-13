@@ -786,7 +786,6 @@ if (data === 'ads') {
   await bot.answerCallbackQuery(callbackQuery.id);
   await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
   await bot.sendSticker(chatId, "CAACAgIAAxkBAAN4alSOOfryPzuLN-wMpc1JLYknx8IAAoZOAAJIiFhJsvTdcsbHwfU8BA");
-  lastStickerId.set(chatId, sticker.message_id); 
   return bot.sendMessage(chatId,
 `<b>🤖 Sizga ham shunday bot kerakmi?</b>
 
