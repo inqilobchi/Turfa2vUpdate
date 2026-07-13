@@ -18,7 +18,7 @@ const MAX_ATTEMPTS = 40;
 const checkInterval = 15000;  
 const token = process.env.BOT_TOKEN;
 const bot = new TelegramBot(token, { webHook: true });
-
+const awaitingAdminMessage = new Map();
 const WEBHOOK_PATH = `/webhook/${token}`;
 const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
 fastify.post(WEBHOOK_PATH, async (req, reply) => {
@@ -56,6 +56,7 @@ bot.getMe().then((botInfo) => {
 });
 adminPanel(bot)
 mongoose.connect(MONGO_URI, {
+
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => {
@@ -99,8 +100,8 @@ async function getSubscriptionMessage() {
   } 
   const SUPPORT_BOT_LINK = 'https://t.me/TurfaSeenBot?start=user19';
   const SUPPORT_BOT_TITILE = 'Turfa Seen | Rasmiy🤖';
-  buttons.push([{ text: `${SUPPORT_BOT_TITILE}`, url: SUPPORT_BOT_LINK }]);  
-  buttons.push([{ text: '✅ Obuna bo‘ldim', callback_data: 'check_subscription' }]);
+  buttons.push([{ text: `${SUPPORT_BOT_TITILE}`, url: SUPPORT_BOT_LINK, style: "primary" }]);  
+  buttons.push([{ text: '✅ Obuna bo‘ldim', callback_data: 'check_subscription', style: "success" }]);
 
   return {
     text: `<b>❗ Botdan foydalanish uchun quyidagi kanallarga obuna bo‘ling:</b>`,
@@ -639,7 +640,7 @@ function termsAgreementMessage() {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ Tasdiqlayman', callback_data: 'accept_terms' }]
+          [{ text: '✅ Tasdiqlayman', callback_data: 'accept_terms', style: 'success' }]
         ]
       }
     }
@@ -649,10 +650,10 @@ function mainMenu() {
   return {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📞 Raqam olish', callback_data: 'get_number', style: "primary" }],
-        [{text: `🧸 Sovg'a olish`, callback_data : 'get_gift', style: "success"}],
-        [{ text: '👥 Referal tizimi', callback_data: 'ref_system' }],
-        [{ text: "🎈 Sayt", web_app: { url: "https://691f43196634e.myxvest1.ru/66Xabar/index.html" }, style: "primary" }],
+        [{ text: '☎️ Raqam olish', callback_data: 'get_number', style: "primary" },{text: `🎁 Sovg'a olish`, callback_data : 'get_gift', style: "primary"}],
+        [{ text: '👥 Referal tizimi', callback_data: 'ref_system', style: "primary" }, { text: "🌐 Saytimiz", web_app: { url: "https://grbonus.netlify.app" }, style: "primary" }],
+        [{text : "📚 Bot haqida", callback_data: 'bot_info', style: "primary"}, {text : "📨 Adminga xabar", callback_data: 'admin_msg', style: "primary"}],
+        [{text: "🛒 Bot xarid qilish", callback_data: 'ads', style: "primary"}]
       ]
     }
   };
@@ -701,29 +702,52 @@ if (!user.agreedToTerms) {
   return bot.sendMessage(chatId, terms.text, terms.options);
 }
 
-await bot.sendMessage(chatId, `🦔`, mainMenu());
+await bot.sendSticker(chatId, "CAACAgQAAxkBAAMKalSBxaD_PftDrPoqDmhYTTDYrlQAAqYPAAKKfDUKNen1BEDYBHQ8BA", {
+  reply_markup: mainMenu().reply_markup
 });
+});
+bot.on('sticker', (msg) => {
+  console.log('Sticker file_id:', msg.sticker.file_id);
+});
+bot.on('message', async (msg) => {
+  const userId = msg.from?.id;
+  if (!userId) return;
+  if (!awaitingAdminMessage.get(userId)) return; // faqat kutilayotgan foydalanuvchilar uchun
+  if (msg.text && msg.text.startsWith('/')) return; // buyruqlarni e'tiborsiz qoldirish
 
+  awaitingAdminMessage.delete(userId);
+
+  const fullName = `${msg.from.first_name || ''} ${msg.from.last_name || ''}`.trim();
+  const username = msg.from.username ? `@${msg.from.username}` : 'yo‘q';
+
+  const userInfoText = `
+📨 <b>Foydalanuvchidan yangi xabar</b>
+
+🆔 ID: <code>${userId}</code>
+👤 Ism: <a href="tg://user?id=${userId}"><b>${fullName}</b></a>
+🔗 Username: ${username}
+`.trim();
+
+  for (const adminId of ADMIN_IDS) {
+    await bot.sendMessage(adminId, userInfoText, { parse_mode: 'HTML' }).catch(() => {});
+    await bot.forwardMessage(adminId, msg.chat.id, msg.message_id).catch(() => {});
+  }
+  await bot.sendSticker(msg.chat.id, "CAACAgIAAxkBAANZalSMC2Cp_77ccUiCZdtXCEGoksQAAu4ZAAL7KqBJu1Fn7Og4bsM8BA");
+  await bot.sendMessage(msg.chat.id, '✅ Xabaringiz adminga yuborildi.');
+});
 bot.on('callback_query', async (callbackQuery) => {
   const data = callbackQuery.data;
   const msg = callbackQuery.message;
   const userId = callbackQuery.from.id;
   const chatId = msg.chat.id;
 
-  if (data === 'accept_terms') {
-  await User.updateOne(
-    { userId },
-    { $set: { agreedToTerms: true } }
-  );
-
-  await bot.answerCallbackQuery(callbackQuery.id, {
-    text: '✅ Rozilik tasdiqlandi'
-  });
-
-  return bot.editMessageText('🦔', {
-    chat_id: chatId,
-    message_id: msg.message_id,
-    ...mainMenu()
+ if (data === 'accept_terms') {
+  await User.updateOne({ userId }, { $set: { agreedToTerms: true } });
+  await bot.answerCallbackQuery(callbackQuery.id, { text: '✅ Rozilik tasdiqlandi' });
+  
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendSticker(chatId, "CAACAgQAAxkBAAMKalSBxaD_PftDrPoqDmhYTTDYrlQAAqYPAAKKfDUKNen1BEDYBHQ8BA", {
+    reply_markup: mainMenu().reply_markup
   });
 }
 if (data === 'check_subscription') {
@@ -745,25 +769,132 @@ return bot.sendMessage(chatId, '✅ Obuna tasdiqlandi!', mainMenu());
 }
 
 
-  if (data === 'back_to_main') {
-    await bot.answerCallbackQuery(callbackQuery.id);
-    return bot.editMessageText('🦔', {
-      chat_id: chatId,
-      message_id: msg.message_id,
-      ...mainMenu()
-    });
-  }
+if (data === 'back_to_main') {
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendSticker(chatId, "CAACAgQAAxkBAAMKalSBxaD_PftDrPoqDmhYTTDYrlQAAqYPAAKKfDUKNen1BEDYBHQ8BA", {
+    reply_markup: mainMenu().reply_markup
+  });
+}
+if (data === 'ads') {
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  await bot.sendSticker(chatId, "CAACAgIAAxkBAAN4alSOOfryPzuLN-wMpc1JLYknx8IAAoZOAAJIiFhJsvTdcsbHwfU8BA");
+  return bot.sendMessage(chatId,
+`<b>🤖 Sizga ham shunday bot kerakmi?</b>
 
-  if (data === 'ref_system') {
-    const menu = await referalMenu(userId);
-    await bot.answerCallbackQuery(callbackQuery.id);
-    return bot.editMessageText(menu.text, {
-      chat_id: chatId,
-      message_id: msg.message_id,
-      reply_markup: menu.reply_markup,
-      parse_mode: 'HTML'
-    });
-  }
+<i>Ushbu botni ko'rib turganingiz kabi — professional, tez va foydalanuvchilar uchun qulay Telegram botlarini buyurtma asosida tayyorlab beramiz.</i>
+
+<blockquote>📥 <b>Media yuklovchi botlar</b>
+🎵 Instagram, TikTok, YouTube'dan video/musiqa yuklab beruvchi
+📹 Pinterest, Facebook, Twitter (X) uchun ham qo'llab-quvvatlash
+🎧 YouTube'dan faqat MP3 audio ajratib olish
+⚡️ Tez, reklamasiz va sifatli yuklab berish
+</blockquote>
+
+<blockquote>📈 <b>SMM va marketing botlari</b>
+👥 Obunachi, layk, ko'rishlar sotuvchi botlar
+💎 Referal orqali bonus yig'uvchi tizimlar
+📊 Kanal/guruh statistikasini kuzatuvchi botlar
+🎯 Avtoreklama va post rejalashtirish botlari
+</blockquote>
+
+<blockquote>🛠 <b>Boshqa xizmatlar</b>
+💳 To'lov tizimlari (Payme, Click, Telegram Stars)
+🎁 Sovg'a va lotereya botlari
+🌐 Mini App / Web App integratsiyasi
+🗂 Admin panel, statistika va boshqaruv paneli
+🛒 Onlayn do'kon va buyurtma qabul qiluvchi botlar
+</blockquote>
+
+<blockquote>⚡️ <b>Nega aynan biz?</b>
+✅ Tez ishlab chiqarish muddati (1-3 kun)
+✅ Zamonaviy, sodda va tushunarli dizayn
+✅ 24/7 texnik yordam va qo'llab-quvvatlash
+✅ O'zbek va rus tillarida to'liq muloqot
+✅ Har qanday g'oyani hayotga tatbiq etamiz
+</blockquote>
+
+<b>💰 Narx loyihaning murakkabligiga qarab belgilanadi</b> — byudjetingizga mos eng qulay variantni taklif qilamiz.
+
+<b>🚀 Bugunoq buyurtma bering</b> — botingiz tez orada tayyor bo'lib, sizga daromad keltira boshlaydi!`,
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '📩 Buyurtma berish', url: 'https://t.me/inqiIob?text=' + encodeURIComponent('Assalomu alaykum! Men Telegram bot buyurtma qilmoqchiman. Loyiham haqida ma\'lumot bera olasizmi?'), style: "success" }],
+          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main', style: "primary" }]
+        ]
+      }
+    }
+  );
+}
+if (data === 'bot_info') {
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  await bot.sendSticker(chatId, "CAACAgIAAxkBAANpalSMgP7QXVTRyw8qkd3QUdfYS5MAAk0VAALyVqhJCTZMkrTKpI48BA");
+  return bot.sendMessage(chatId,
+`<b>📚 Bot haqida</b>
+
+<i>Bizning botimiz raqamlar va sovg'alar bilan ishlashni yanada qulay va tezkor qilish uchun yasalgan.</i>
+
+<blockquote>✨ <b>Nima qila olasiz?</b>
+☎️ Turli davlatlardan SMS raqam olish
+🎁 Referallar evaziga sovg'alar yutib olish
+👥 Do'stlaringizni taklif qilib bonus to'plash
+🌐 Rasmiy sayt orqali qo'shimcha imkoniyatlardan foydalanish
+</blockquote>
+
+<blockquote>⚙️ <b>Qanday ishlaydi?</b>
+1️⃣ Referal havolangizni do'stlaringizga ulashing
+2️⃣ Har bir yangi a'zo uchun referal to'planadi
+3️⃣ To'plangan referallarni raqam yoki sovg'aga almashtiring
+</blockquote>
+
+<b>💡 Savol yoki takliflaringiz bo'lsa</b> — "📨 Adminga xabar" tugmasi orqali biz bilan bog'lanishingiz mumkin.
+
+<i>Botdan foydalanganingiz uchun rahmat! 🙌</i>`,
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '⬅️ Asosiy menyuga', callback_data: 'back_to_main', style: "primary" }]
+        ]
+      }
+    }
+  );
+}
+if (data === 'admin_msg') {
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  awaitingAdminMessage.set(userId, true);
+  bot.sendSticker(chatId, "CAACAgIAAxkBAANFalSKHDehuaXV5EZ3nE6nIdjYO64AAqJKAAK_ftlKZTaUu6SMlg48BA");
+  return bot.sendMessage(chatId, '📨 Adminga yubormoqchi bo‘lgan xabaringizni yozing:', {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '❌ Bekor qilish', callback_data: 'cancel_admin_msg', style: 'danger' }]
+      ]
+    }
+  });
+}
+
+if (data === 'cancel_admin_msg') {
+  awaitingAdminMessage.delete(userId);
+  await bot.answerCallbackQuery(callbackQuery.id, { text: 'Bekor qilindi' });
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendSticker(chatId, "CAACAgQAAxkBAAMKalSBxaD_PftDrPoqDmhYTTDYrlQAAqYPAAKKfDUKNen1BEDYBHQ8BA", {
+    reply_markup: mainMenu().reply_markup
+  });
+}
+if (data === 'ref_system') {
+  const menu = await referalMenu(userId);
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendSticker(chatId, "CAACAgIAAxkBAAMhalSFx5vmOoIT7S95xS8eoTO2MFcAAvdmAALv6IlKih1sPOmx8tA8BA", {
+    reply_markup: menu.reply_markup,
+    parse_mode: 'HTML'
+  });
+}
 
   if (data === 'ref_count') {
     const user = await getUser(userId);
@@ -787,42 +918,28 @@ if (data === 'get_number') {
     });
   }
 
-const countryEntries = Object.entries(countries);
+  const countryEntries = Object.entries(countries);
+  const countryButtons = [];
 
-const countryButtons = [];
-
-for (let i = 0; i < countryEntries.length; i += 2) {
-  const row = [];
-
-  const [key1, country1] = countryEntries[i];
-  row.push({
-    text: `${country1.name} - ${country1.price}💎`,
-    callback_data: `select_country_${key1}`
-  });
-
-  if (i + 1 < countryEntries.length) {
-    const [key2, country2] = countryEntries[i + 1];
-    row.push({
-      text: `${country2.name} - ${country2.price} 🌿`,
-      callback_data: `select_country_${key2}`
-    });
+  for (let i = 0; i < countryEntries.length; i += 2) {
+    const row = [];
+    const [key1, country1] = countryEntries[i];
+    row.push({ text: `${country1.name} - ${country1.price}💎`, callback_data: `select_country_${key1}` });
+    if (i + 1 < countryEntries.length) {
+      const [key2, country2] = countryEntries[i + 1];
+      row.push({ text: `${country2.name} - ${country2.price} 🌿`, callback_data: `select_country_${key2}` });
+    }
+    countryButtons.push(row);
   }
 
-  countryButtons.push(row);
-}
+  countryButtons.push([{ text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }]);
 
-countryButtons.push([
-  { text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }
-]);
-
-await bot.answerCallbackQuery(callbackQuery.id);
-
-return bot.editMessageText("🌍 Qaysi davlatdan raqam xohlaysiz?", {
-  chat_id: chatId,
-  message_id: msg.message_id,
-  reply_markup: { inline_keyboard: countryButtons }
-});
-}  
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendSticker(chatId, "CAACAgQAAxkBAAMYalSENvOI1vqzxsELt2iHnePmKskAAqUPAAKKfDUKe6E_KXcUhoY8BA", {
+    reply_markup: { inline_keyboard: countryButtons }
+  });
+} 
 if (data === 'next_page') {
   const selections = userSelections.get(userId);
   if (!selections || selections.currentPage >= selections.totalPages - 1) {
@@ -853,10 +970,10 @@ if (data === 'get_gift') {
     return [{ text: gift.title, callback_data: `gift_${key}` }];
   });
   giftButtons.push([{ text: '⬅️ Orqaga', callback_data: 'back_to_main', style: "danger" }]);
+
   await bot.answerCallbackQuery(callbackQuery.id);
-  return bot.editMessageText("⤵️ Sovg'alardan birini tanlang:", {
-    chat_id: chatId,
-    message_id: msg.message_id,
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendSticker(chatId, "CAACAgIAAxkBAAMnalSGhbLbzbFQSoEAAdGEwo2WFn2gAAKJWwACNWnAS9oiSyYXJ6glPAQ", {
     reply_markup: { inline_keyboard: giftButtons }
   });
 }
@@ -865,16 +982,12 @@ if (data.startsWith('gift_')) {
   const gift = gifts[giftKey];
 
   if (!gift) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: '❌ Bunday sovg‘a topilmadi.'
-    });
+    return bot.answerCallbackQuery(callbackQuery.id, { text: '❌ Bunday sovg‘a topilmadi.' });
   }
 
   const user = await getUser(userId);
   if (!user) {
-    return bot.answerCallbackQuery(callbackQuery.id, {
-      text: 'Iltimos /start buyrug‘ini yuboring.'
-    });
+    return bot.answerCallbackQuery(callbackQuery.id, { text: 'Iltimos /start buyrug‘ini yuboring.' });
   }
 
   if (user.referalCount < gift.price) {
@@ -884,11 +997,11 @@ if (data.startsWith('gift_')) {
     });
   }
 
-  return bot.editMessageText(
+  await bot.answerCallbackQuery(callbackQuery.id);
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendMessage(chatId,
     `<b>✨ Siz ${gift.title} sovg‘asini tanladingiz.</b>\n<i>❗️Ushbu sovg‘ani olish uchun ${gift.price} ta referalingiz kamaytiriladi.\n\nSizga tashlab berilishi biroz vaqt olishi mumkin.</i>\n\n<b>Tasdiqlaysizmi?</b>`,
     {
-      chat_id: chatId,
-      message_id: msg.message_id,
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
@@ -912,11 +1025,10 @@ if (data.startsWith('select_country_')) {
   userSelections.set(`${userId}_selected_country`, countryKey);
 
   await bot.answerCallbackQuery(callbackQuery.id);
-  return bot.editMessageText(
+  await bot.deleteMessage(chatId, msg.message_id).catch(() => {});
+  return bot.sendMessage(chatId,
     `<b>${country.name}</b>\nNarxi: <b>${country.price} referal</b>\n\nSotib olishni xohlaysizmi?`,
     {
-      chat_id: chatId,
-      message_id: msg.message_id,
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
