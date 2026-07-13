@@ -268,15 +268,25 @@ async function fetchHtml(url, retries = 3) {
       }
     });
 
+    console.log("========== FETCH ==========");
+    console.log("URL:", url);
+    console.log("STATUS:", response.status);
+    console.log("FINAL URL:", response.request?.res?.responseUrl);
+    console.log("HTML LENGTH:", response.data.length);
+    console.log("FIRST 1000 CHARS:");
+    console.log(response.data.substring(0,1000));
+    console.log("===========================");
+
     return response.data;
+
   } catch (err) {
+    console.log("FETCH ERROR:", err.message);
+
     if (retries > 0) {
-      console.log(`Retry... ${url}`);
       await new Promise(r => setTimeout(r, 2000));
       return fetchHtml(url, retries - 1);
     }
 
-    console.error('fetchHtml error:', err.message);
     return null;
   }
 }
@@ -289,30 +299,34 @@ async function safeScrape(countryKey, countries) {
   }
 }
 function parsePhones(html, baseUrl) {
-  const $ = cheerio.load(html);
-  const results = [];
 
-  // Faqat raqam kartochkalarini tanlaymiz (/numbers/ href bo'yicha)
-  $('a[href*="/numbers/"]').each((_, el) => {
-    const $el = $(el);
+    const $ = cheerio.load(html);
 
-    // Raqam faqat shu maxsus <p> ichida, boshqa matn bilan aralashmaydi
-    const phoneText = $el.find('p.font-mono').first().text().trim();
-    if (!phoneText) return;
+    console.log("URL:", baseUrl);
+    console.log("a[href*='/numbers/'] =", $('a[href*="/numbers/"]').length);
+    console.log("font-mono =", $('p.font-mono').length);
 
-    const phone = phoneText.replace(/[^\d+]/g, '');
-    if (!phone) return;
+    const results = [];
 
-    const href = $el.attr('href');
-    results.push({ phone, site: baseUrl, href });
-  });
+    $('a[href*="/numbers/"]').each((_, el) => {
 
-  const seen = new Set();
-  return results.filter(r => {
-    if (seen.has(r.phone)) return false;
-    seen.add(r.phone);
-    return true;
-  });
+        const phoneText = $(el).find('p.font-mono').first().text().trim();
+
+        console.log("PHONE TEXT:", phoneText);
+
+        if (!phoneText) return;
+
+        const phone = phoneText.replace(/[^\d+]/g,'');
+
+        results.push({
+            phone,
+            href: $(el).attr('href')
+        });
+    });
+
+    console.log("TOTAL FOUND:", results.length);
+
+    return results;
 }
 async function scrapeCountry(countryKey, countries) {
   const country = countries[countryKey];
