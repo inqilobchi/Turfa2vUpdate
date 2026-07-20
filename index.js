@@ -252,16 +252,29 @@ function getRandomUA() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
+let browserInstance;
+async function getBrowser() {
+  if (!browserInstance) {
+    browserInstance = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+  }
+  return browserInstance;
+}
+
 async function fetchHtml(url, retries = 3) {
   try {
-    // ScraperAPI orqali (yoki ScrapingBee, ScrapeOps kabi shunga o'xshash xizmat)
-    const proxyUrl = `https://api.scraperapi.com/?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(url)}`;
-    
-    const response = await axios.get(proxyUrl, { timeout: 60000 });
-    return response.data;
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setUserAgent(getRandomUA());
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    const html = await page.content();
+    await page.close();
+    return html;
   } catch (err) {
     if (retries > 0) {
-      await new Promise(r => setTimeout(r, 2000));
+      await sleep(2000);
       return fetchHtml(url, retries - 1);
     }
     console.error('fetchHtml error:', err.message);
