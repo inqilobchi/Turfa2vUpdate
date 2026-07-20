@@ -252,35 +252,59 @@ function getRandomUA() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-let browserInstance;
-async function getBrowser() {
-  if (!browserInstance) {
-    browserInstance = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+let proxyList = [];
+let proxyIndex = 0;
+
+async function refreshProxyList() {
+  try {
+    // ProxyScrape bepul API - HTTP proksilar ro'yxati
+    const res = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=elite', { timeout: 15000 });
+    proxyList = res.data.split('\n').map(p => p.trim()).filter(Boolean);
+    console.log(`✅ ${proxyList.length} ta proksi yuklandi`);
+  } catch (err) {
+    console.error('Proksi ro\'yxatini olishda xato:', err.message);
   }
-  return browserInstance;
 }
 
-async function fetchHtml(url, retries = 3) {
+function getNextProxy() {
+  if (proxyList.length === 0) return null;
+  const proxy = proxyList[proxyIndex % proxyList.length];
+  proxyIndex++;
+  return proxy;
+}
+
+async function fetchHtml(url, retries = 5) {
+  if (proxyList.length === 0) await refreshProxyList();
+
+  const proxy = getNextProxy();
+  if (!proxy) {
+    console.error('Ishlaydigan proksi topilmadi');
+    return null;
+  }
+
+  const [host, port] = proxy.split(':');
+
   try {
-    const browser = await getBrowser();
-    const page = await browser.newPage();
-    await page.setUserAgent(getRandomUA());
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    const html = await page.content();
-    await page.close();
-    return html;
+    const response = await axios.get(url, {
+      proxy: { host, port: parseInt(port, 10), protocol: 'http' },
+      headers: { 'User-Agent': getRandomUA() },
+      timeout: 10000
+    });
+    return response.data;
   } catch (err) {
     if (retries > 0) {
-      await sleep(2000);
+      // bu proksi ishlamadi, ro'yxatdan olib tashlaymiz va keyingisini sinaymiz
+      proxyList = proxyList.filter(p => p !== proxy);
       return fetchHtml(url, retries - 1);
     }
-    console.error('fetchHtml error:', err.message);
+    console.error('Barcha proksilar sinovdan o\'tmadi:', url);
     return null;
   }
 }
+
+// Har 10 daqiqada proksi ro'yxatini yangilab turish
+setInterval(refreshProxyList, 10 * 60 * 1000);
+refreshProxyList();
 async function safeScrape(countryKey, countries) {
   try {
     return await scrapeCountry(countryKey, countries);
